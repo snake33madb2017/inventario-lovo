@@ -304,19 +304,32 @@ function stopListening() {
     liveText.classList.add('placeholder');
 }
 
+const NUMEROS_ES = {
+    'cero': 0, 'un': 1, 'una': 1, 'uno': 1, 'dos': 2, 'tres': 3, 'cuatro': 4, 
+    'cinco': 5, 'seis': 6, 'siete': 7, 'ocho': 8, 'nueve': 9, 'diez': 10,
+    'once': 11, 'doce': 12, 'trece': 13, 'catorce': 14, 'quince': 15, 
+    'dieciseis': 16, 'diecisiete': 17, 'dieciocho': 18, 'diecinueve': 19,
+    'veinte': 20, 'veintiun': 21, 'veintiuno': 21, 'veintidos': 22, 'veintitres': 23,
+    'veinticuatro': 24, 'veinticinco': 25, 'veintiseis': 26, 'veintisiete': 27,
+    'veintiocho': 28, 'veintinueve': 29, 'treinta': 30, 'cuarenta': 40, 
+    'cincuenta': 50, 'sesenta': 60, 'setenta': 70, 'ochenta': 80, 'noventa': 90, 'cien': 100
+};
+
 function normalizeText(text) {
     let t = text;
     t = t.replace(/\b(punto|coma)\b/g, '.');
-    t = t.replace(/\b(un|una|uno)\b/g, '1');
-    t = t.replace(/\b(dos)\b/g, '2');
-    t = t.replace(/\b(tres)\b/g, '3');
-    t = t.replace(/\b(cuatro)\b/g, '4');
-    t = t.replace(/\b(cinco)\b/g, '5');
-    t = t.replace(/\b(seis)\b/g, '6');
-    t = t.replace(/\b(siete)\b/g, '7');
-    t = t.replace(/\b(ocho)\b/g, '8');
-    t = t.replace(/\b(nueve)\b/g, '9');
-    t = t.replace(/\b(cero)\b/g, '0');
+    
+    // Reemplaza compuestos como "treinta y cinco" -> 35
+    t = t.replace(/\b(treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+(un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/g, (match, decena, unidad) => {
+        return (NUMEROS_ES[decena] + NUMEROS_ES[unidad]).toString();
+    });
+    
+    // Reemplaza palabras sueltas de mayor a menor longitud
+    const palabras = Object.keys(NUMEROS_ES).sort((a,b) => b.length - a.length);
+    for (const word of palabras) {
+        t = t.replace(new RegExp(`\\b${word}\\b`, 'g'), NUMEROS_ES[word]);
+    }
+    
     t = t.replace(/\s+\.\s+/g, '.');
     return t;
 }
@@ -468,16 +481,15 @@ async function clearMonthInventory() {
 
 function renderList() {
     itemsList.innerHTML = '';
-    const activeCategory = categoryDropdown.value;
-    const filteredItems = recentItems.filter(item => item.categoria === activeCategory);
     
-    if (filteredItems.length === 0) {
-        itemsList.innerHTML = `<li class="item-card" style="justify-content: center; color: var(--text-muted); font-style: italic;">Sin registros de ${activeCategory} hoy</li>`;
+    // Mostramos TODOS los registros del día, sin filtrar por categoría
+    if (recentItems.length === 0) {
+        itemsList.innerHTML = `<li class="item-card" style="justify-content: center; color: var(--text-muted); font-style: italic;">Sin registros hoy</li>`;
         undoBtn.disabled = true;
         return;
     }
     undoBtn.disabled = false;
-    filteredItems.forEach(item => {
+    recentItems.forEach(item => {
         const li = document.createElement('li');
         li.className = 'item-card';
         li.innerHTML = `
