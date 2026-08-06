@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+inventario.db
+*.xlsx
+.env
+.venv/
+venv/
+env/

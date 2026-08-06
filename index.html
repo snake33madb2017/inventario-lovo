@@ -1,0 +1,182 @@
+<!DOCTYPE strict>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Inventario por Voz</title>
+    <!-- PWA Setup -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#121212">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&family=Inter:wght@400;600;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="styles.css?v=10">
+</head>
+<body>
+    <!-- Vista de Inicio de Sesión -->
+    <div id="login-view" class="view active login-container">
+        <div class="login-box">
+            <img src="logo.png" alt="Lovo Logo" class="logo-large" onerror="this.style.display='none'">
+            <h1 class="login-title">Inventario Lovo Cocktail Bar Madrid</h1>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="dni-input">DNI / NIE</label>
+                    <input type="text" id="dni-input" placeholder="Ej: Z3738848L" required>
+                </div>
+                <div class="form-group">
+                    <label for="password-input">Contraseña</label>
+                    <input type="password" id="password-input" placeholder="Contraseña" required>
+                </div>
+                <button type="submit" class="login-btn">Ingresar</button>
+                <p id="login-error" class="login-error hidden">Credenciales incorrectas</p>
+            </form>
+            <div style="margin-top: 20px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                <button id="install-app-btn" class="undo-btn hidden" style="width: fit-content; margin: 0 auto; font-size: 0.85rem; padding: 8px 16px; background-color: #f59e0b; color: white; border: none; font-weight: bold; border-radius: 8px; cursor: pointer;">
+                    📱 Instalar App en el Móvil
+                </button>
+                <button id="settings-btn-login" class="undo-btn" style="width: fit-content; margin: 0 auto; font-size: 0.75rem; padding: 4px 8px;">
+                    Configurar IP Server
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vista Principal de la App -->
+    <div id="app-view" class="view hidden app-container">
+        <header>
+            <div class="header-left">
+                <img src="logo.png" alt="Lovo Logo" class="logo" onerror="this.style.display='none'">
+                <div style="display: flex; gap: 8px;">
+                    <button id="admin-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #3b82f6; border-color: #3b82f6;">
+                        ⚙️ Admin
+                    </button>
+                    <button id="logout-btn" class="undo-btn" style="font-size: 0.75rem; padding: 4px 8px;">
+                        Salir
+                    </button>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                <div id="status-indicator" class="status-indicator offline">
+                    <span class="dot"></span>
+                    <span class="text">Desconectado</span>
+                </div>
+                <div id="user-display" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                    Usuario
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="category-selector">
+                <label for="category-dropdown">Categoría Activa</label>
+                <div class="category-controls">
+                    <select id="category-dropdown">
+                        <!-- Llenado por JS -->
+                    </select>
+                </div>
+            </div>
+            
+            <div class="microphone-section">
+                <div class="mic-ripple"></div>
+                <button id="mic-btn" class="mic-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                </button>
+                <p id="mic-status-text">Toca para hablar</p>
+            </div>
+
+            <div class="recognition-box">
+                <p id="live-text" class="placeholder">Lo que escuche aparecerá aquí...</p>
+            </div>
+
+            <div class="recent-items-section">
+                <div class="section-header">
+                    <h2>Inventario de Hoy</h2>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="undo-btn" class="undo-btn" disabled>
+                            Deshacer
+                        </button>
+                        <button id="download-btn" class="download-btn hidden">
+                            Excel
+                        </button>
+                        <button id="clear-month-btn" class="undo-btn hidden" style="color: #ef4444; border-color: #ef4444;" title="Borrar todo el mes">
+                            Borrar
+                        </button>
+                    </div>
+                </div>
+                <ul id="items-list" class="items-list">
+                    <!-- Los items aparecerán aquí -->
+                </ul>
+            </div>
+        </main>
+    </div> <!-- End of app-view -->
+
+    <!-- Panel de Administración -->
+    <div id="admin-view" class="view hidden admin-container">
+        <header>
+            <div class="header-left">
+                <h2>Panel de Administración</h2>
+            </div>
+            <button id="close-admin-btn" class="undo-btn" style="color: white;">Cerrar Panel</button>
+        </header>
+        
+        <main style="padding: 1rem;">
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-tab="tab-usuarios">Usuarios</button>
+                <button class="tab-btn" data-tab="tab-categorias">Categorías</button>
+                <button class="tab-btn" data-tab="tab-diccionario">Diccionario</button>
+            </div>
+
+            <div id="tab-usuarios" class="tab-content active">
+                <h3>Gestionar Empleados</h3>
+                <form id="form-usuario" class="admin-form">
+                    <input type="text" id="new-user-dni" placeholder="DNI" required>
+                    <input type="text" id="new-user-nombre" placeholder="Nombre completo" required>
+                    <input type="password" id="new-user-pass" placeholder="Contraseña" required>
+                    <select id="new-user-rol">
+                        <option value="camarero">Camarero</option>
+                        <option value="encargado">Encargado</option>
+                    </select>
+                    <button type="submit">Añadir Usuario</button>
+                </form>
+                <ul id="lista-usuarios" class="admin-list"></ul>
+            </div>
+
+            <div id="tab-categorias" class="tab-content hidden">
+                <h3>Gestionar Categorías</h3>
+                <form id="form-categoria" class="admin-form">
+                    <input type="text" id="new-cat-nombre" placeholder="Ej: Syrups" required>
+                    <button type="submit">Añadir Categoría</button>
+                </form>
+                <ul id="lista-categorias" class="admin-list"></ul>
+            </div>
+
+            <div id="tab-diccionario" class="tab-content hidden">
+                <h3>Autocorrector de Voz (Diccionario)</h3>
+                <p style="font-size: 0.8rem; color: #888; margin-bottom: 10px;">Si el micrófono entiende "jagger", haz que se guarde como "Jägermeister".</p>
+                <form id="form-diccionario" class="admin-form">
+                    <input type="text" id="new-dict-alias" placeholder="Lo que entiende (ej: jagger)" required>
+                    <input type="text" id="new-dict-real" placeholder="Nombre real (ej: Jägermeister)" required>
+                    <button type="submit">Añadir Regla</button>
+                </form>
+                <ul id="lista-diccionario" class="admin-list"></ul>
+            </div>
+        </main>
+        <footer style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 30px; padding-bottom: 20px;">
+            Desarrollado por Marco Daza - 2026
+        </footer>
+    </div>
+
+    <div id="toast" class="toast">Notificación</div>
+
+    <script src="app.js?v=7"></script>
+</body>
+</html>
