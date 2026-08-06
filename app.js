@@ -251,7 +251,7 @@ function setupSpeechRecognition() {
     if (!SpeechRecognition) return;
     recognition = new SpeechRecognition();
     recognition.lang = 'es-ES';
-    recognition.continuous = true;
+    recognition.continuous = false; // CLAVE: en false, Android procesa la frase entera y se detiene
     recognition.interimResults = true;
     
     recognition.onstart = () => {
@@ -259,35 +259,33 @@ function setupSpeechRecognition() {
         micBtn.classList.add('listening');
         micStatusText.textContent = "Escuchando...";
         micStatusText.style.color = "#ef4444";
-        liveText.textContent = "Di un producto...";
         liveText.classList.remove('placeholder');
     };
+    
     recognition.onresult = (event) => {
         let transcript = '';
-        for (let i = Math.max(0, event.results.length - 3); i < event.results.length; i++) {
-             // Concatenamos los últimos resultados para evitar que se pierdan palabras si hace pausas
-            transcript += event.results[i][0].transcript + ' ';
+        for (let i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
         }
         
-        currentTranscript = transcript.trim();
-        if (currentTranscript) {
-            liveText.textContent = currentTranscript;
-        }
+        currentTranscript = transcript;
+        liveText.textContent = currentTranscript;
         
-        clearTimeout(speechTimeout);
-        speechTimeout = setTimeout(() => {
-            if (currentTranscript) {
-                liveText.textContent = "Procesando: " + currentTranscript;
-                processVoiceCommand(currentTranscript.toLowerCase());
-                currentTranscript = "";
-                // Reiniciamos el reconocedor para limpiar la memoria de resultados
-                if (isListening) {
-                    try { recognition.stop(); } catch(e){}
-                }
+        // Si el navegador ya detectó que es el final de la frase (isFinal = true)
+        if (event.results[0] && event.results[0].isFinal) {
+            clearTimeout(speechTimeout);
+            const finalText = currentTranscript.trim().toLowerCase();
+            currentTranscript = "";
+            
+            if (finalText) {
+                liveText.textContent = "Procesando: " + finalText;
+                processVoiceCommand(finalText);
             }
-        }, 1500);
+        }
     };
+    
     recognition.onend = () => {
+        // Como pusimos continuous=false, se detendrá solo. Aquí lo volvemos a encender.
         if (isListening) {
             try { recognition.start(); } catch(e) { stopListening(); }
         }
