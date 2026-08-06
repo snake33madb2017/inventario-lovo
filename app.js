@@ -370,7 +370,11 @@ function findClosestMatch(producto) {
     if (historicoProductos.length === 0) return producto;
     let bestMatch = producto;
     let minDistance = Infinity;
-    const threshold = 2;
+    
+    // Umbral dinámico: permite hasta un 30% de error en la frase (mínimo 2 letras)
+    // Así corrige "cajas de pecho" (error de 3 letras en 14 = 21%) a "cajas de pepsi"
+    const threshold = Math.max(2, Math.floor(producto.length * 0.3));
+    
     // Si el producto dictado contiene números (ej: 1.5), NO hacemos autocorrección para no destruir el tamaño
     if (/\d/.test(producto)) return producto;
     
