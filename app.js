@@ -243,6 +243,9 @@ function setupAudioFeedback() {
     }
 }
 
+let speechTimeout = null;
+let currentTranscript = "";
+
 function setupSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
@@ -260,19 +263,29 @@ function setupSpeechRecognition() {
         liveText.classList.remove('placeholder');
     };
     recognition.onresult = (event) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-                finalTranscript += transcript;
-                liveText.textContent = "Procesando: " + transcript;
-                processVoiceCommand(transcript.trim().toLowerCase());
-            } else {
-                interimTranscript += transcript;
-            }
+        let transcript = '';
+        for (let i = Math.max(0, event.results.length - 3); i < event.results.length; i++) {
+             // Concatenamos los últimos resultados para evitar que se pierdan palabras si hace pausas
+            transcript += event.results[i][0].transcript + ' ';
         }
-        if (interimTranscript) liveText.textContent = interimTranscript;
+        
+        currentTranscript = transcript.trim();
+        if (currentTranscript) {
+            liveText.textContent = currentTranscript;
+        }
+        
+        clearTimeout(speechTimeout);
+        speechTimeout = setTimeout(() => {
+            if (currentTranscript) {
+                liveText.textContent = "Procesando: " + currentTranscript;
+                processVoiceCommand(currentTranscript.toLowerCase());
+                currentTranscript = "";
+                // Reiniciamos el reconocedor para limpiar la memoria de resultados
+                if (isListening) {
+                    try { recognition.stop(); } catch(e){}
+                }
+            }
+        }, 1500);
     };
     recognition.onend = () => {
         if (isListening) {
