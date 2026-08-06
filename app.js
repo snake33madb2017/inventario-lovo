@@ -490,25 +490,52 @@ async function clearMonthInventory() {
 function renderList() {
     itemsList.innerHTML = '';
     
-    // Mostramos TODOS los registros del día, sin filtrar por categoría
+    // Mostramos TODOS los registros del día, agrupados por categoría
     if (recentItems.length === 0) {
         itemsList.innerHTML = `<li class="item-card" style="justify-content: center; color: var(--text-muted); font-style: italic;">Sin registros hoy</li>`;
         undoBtn.disabled = true;
         return;
     }
+    
     undoBtn.disabled = false;
+    
+    // Agrupar por categoría manteniendo el orden (el más reciente saldrá primero)
+    const grupos = {};
     recentItems.forEach(item => {
-        const li = document.createElement('li');
-        li.className = 'item-card';
-        li.innerHTML = `
-            <div class="item-info">
-                <span class="item-name">${item.producto}</span>
-                <span class="item-category">${item.categoria} &bull; ${item.hora}</span>
-            </div>
-            <div class="item-quantity">${item.cantidad_dictada}</div>
-        `;
-        itemsList.appendChild(li);
+        if (!grupos[item.categoria]) grupos[item.categoria] = [];
+        grupos[item.categoria].push(item);
     });
+    
+    for (const [categoria, items] of Object.entries(grupos)) {
+        // Añadir encabezado de categoría
+        const header = document.createElement('li');
+        header.style.backgroundColor = '#1f2937'; // Fondo oscuro
+        header.style.color = '#fbbf24'; // Texto dorado
+        header.style.padding = '6px 12px';
+        header.style.marginTop = '12px';
+        header.style.marginBottom = '4px';
+        header.style.borderRadius = '6px';
+        header.style.fontWeight = 'bold';
+        header.style.fontSize = '0.85rem';
+        header.style.textTransform = 'uppercase';
+        header.style.letterSpacing = '1px';
+        header.textContent = categoria;
+        itemsList.appendChild(header);
+        
+        // Añadir items de esta categoría
+        items.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'item-card';
+            li.innerHTML = `
+                <div class="item-info">
+                    <span class="item-name">${item.producto}</span>
+                    <span class="item-category" style="font-size:0.75rem">${item.hora}</span>
+                </div>
+                <div class="item-quantity">${item.cantidad_dictada}</div>
+            `;
+            itemsList.appendChild(li);
+        });
+    }
 }
 
 function showToast(msg = "Registro guardado") {
