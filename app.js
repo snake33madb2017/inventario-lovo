@@ -316,8 +316,14 @@ const NUMEROS_ES = {
 };
 
 function normalizeText(text) {
-    let t = text;
-    t = t.replace(/\b(punto|coma)\b/g, '.');
+    let t = text.toLowerCase();
+    
+    // Reemplaza comas literales entre números (ej. Android formatea "2,3" nativamente)
+    t = t.replace(/(\d),(\d)/g, '$1.$2');
+    
+    // Reemplaza palabras usadas como decimal
+    t = t.replace(/\b(punto|coma|con)\b/g, '.');
+    t = t.replace(/\by\s+medi[oa]\b/g, '.5');
     
     // Reemplaza compuestos como "treinta y cinco" -> 35
     t = t.replace(/\b(treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+(un|una|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/g, (match, decena, unidad) => {
@@ -330,7 +336,9 @@ function normalizeText(text) {
         t = t.replace(new RegExp(`\\b${word}\\b`, 'g'), NUMEROS_ES[word]);
     }
     
-    t = t.replace(/\s+\.\s+/g, '.');
+    // Une los números con el punto decimal (ej. "2 . 3" o "2 .5" -> "2.3")
+    t = t.replace(/(\d)\s*\.\s*(\d)/g, '$1.$2');
+    
     return t;
 }
 
