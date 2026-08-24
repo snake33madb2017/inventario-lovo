@@ -1,10 +1,11 @@
-const CACHE_NAME = 'inventario-lovo-v6';
+const CACHE_NAME = 'inventario-lovo-v7';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './styles.css',
     './app.js',
-    './logo.png'
+    './logo.png',
+    './logo_lovo.png'
 ];
 
 self.addEventListener('install', event => {
