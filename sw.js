@@ -1,31 +1,46 @@
-// MODO DESARROLLO: Caché desactivada para que los cambios se vean inmediatamente.
+const CACHE_NAME = 'inventario-lovo-v6';
+const ASSETS_TO_CACHE = [
+    './',
+    './index.html',
+    './styles.css',
+    './app.js',
+    './logo.png'
+];
 
 self.addEventListener('install', event => {
-    self.skipWaiting(); // Forzar actualización inmediata
+    event.waitUntil(
+        caches.open(CACHE_NAME).then(cache => {
+            return cache.addAll(ASSETS_TO_CACHE);
+        }).then(() => self.skipWaiting())
+    );
 });
 
 self.addEventListener('activate', event => {
-    // Borrar absolutamente todas las cachés antiguas de Lovo
     event.waitUntil(
         caches.keys().then(cacheNames => {
             return Promise.all(
-                cacheNames.map(cacheName => {
-                    return caches.delete(cacheName);
-                })
+                cacheNames.filter(cacheName => cacheName !== CACHE_NAME)
+                .map(cacheName => caches.delete(cacheName))
             );
-        }).then(() => {
-            return self.clients.claim(); // Tomar control inmediato
-        })
+        }).then(() => self.clients.claim())
     );
 });
 
 self.addEventListener('fetch', event => {
-    const CACHE_NAME = 'inventario-lovo-v4';
-    // Siempre ir a la red, nunca devolver de la caché (ideal para desarrollo)
+    if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
+        return;
+    }
     event.respondWith(
-        fetch(event.request).catch(() => {
-            // Si no hay internet, fallar limpiamente (en producción pondríamos offline support)
-            return new Response("App en modo desarrollo: Requiere conexión.");
+        caches.match(event.request).then(cachedResponse => {
+            const fetchPromise = fetch(event.request).then(networkResponse => {
+                if(networkResponse.ok) {
+                    caches.open(CACHE_NAME).then(cache => {
+                        cache.put(event.request, networkResponse.clone());
+                    });
+                }
+                return networkResponse;
+            }).catch(() => null);
+            return cachedResponse || fetchPromise || new Response("App offline", {status: 503});
         })
     );
 });
