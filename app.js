@@ -25,6 +25,10 @@ const categoryDropdown = document.getElementById('category-dropdown');
 const statusIndicator = document.getElementById('status-indicator');
 const toast = document.getElementById('toast');
 
+const manualBtn = document.getElementById('manual-btn');
+const manualForm = document.getElementById('manual-form');
+const manualInput = document.getElementById('manual-input');
+
 const loginView = document.getElementById('login-view');
 const appView = document.getElementById('app-view');
 const adminView = document.getElementById('admin-view');
@@ -77,6 +81,31 @@ async function init() {
     if(settingsBtnLogin) {
         settingsBtnLogin.addEventListener('click', forceSetupServerUrl);
     }
+    if(manualBtn) {
+        manualBtn.addEventListener('click', () => {
+            if(manualForm.classList.contains('hidden')) {
+                manualForm.classList.remove('hidden');
+                manualForm.style.display = 'flex';
+                manualInput.focus();
+            } else {
+                manualForm.classList.add('hidden');
+                manualForm.style.display = 'none';
+            }
+        });
+    }
+    if(manualForm) {
+        manualForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = manualInput.value;
+            if(text.trim()) {
+                liveText.textContent = "Procesando manual: " + text;
+                processVoiceCommand(text);
+                manualInput.value = '';
+                manualForm.classList.add('hidden');
+                manualForm.style.display = 'none';
+            }
+        });
+    }
     
     setupAdminTabs();
 }
@@ -93,6 +122,7 @@ function handleLogout() {
     localStorage.removeItem('usuario_lovo_nombre');
     localStorage.removeItem('usuario_lovo_dni');
     localStorage.removeItem('usuario_lovo_rol');
+    localStorage.removeItem('usuario_lovo_token');
     showLogin();
 }
 
@@ -139,6 +169,7 @@ async function handleLogin(e) {
             localStorage.setItem('usuario_lovo_dni', dni);
             localStorage.setItem('usuario_lovo_nombre', data.nombre);
             localStorage.setItem('usuario_lovo_rol', data.rol);
+            localStorage.setItem('usuario_lovo_token', data.token);
             showApp(data.nombre, data.rol);
         } else {
             loginError.textContent = "Credenciales incorrectas";
@@ -166,9 +197,16 @@ function setupServerUrl() {
     }
 }
 
+function getAuthHeaders() {
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('usuario_lovo_token')}`
+    };
+}
+
 async function checkServerConnection() {
     try {
-        await fetch(`${SERVER_URL}/docs`, { mode: 'no-cors' }); 
+        await fetch(`${SERVER_URL}/api/productos`, { headers: getAuthHeaders() }); 
         updateStatus(true);
         await Promise.all([
             fetchCategorias(),
@@ -184,7 +222,7 @@ async function checkServerConnection() {
 // --- Data Fetching ---
 async function fetchCategorias() {
     try {
-        const response = await fetch(`${SERVER_URL}/api/admin/categorias`);
+        const response = await fetch(`${SERVER_URL}/api/admin/categorias`, { headers: getAuthHeaders() });
         if(response.ok) {
             const data = await response.json();
             categorias = data.map(c => c.nombre);
@@ -195,7 +233,7 @@ async function fetchCategorias() {
 
 async function fetchDiccionario() {
     try {
-        const response = await fetch(`${SERVER_URL}/api/admin/diccionario`);
+        const response = await fetch(`${SERVER_URL}/api/admin/diccionario`, { headers: getAuthHeaders() });
         if(response.ok) {
             const data = await response.json();
             ALIASES = {};
@@ -224,6 +262,16 @@ function setupAudioFeedback() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (AudioContext) {
         const audioCtx = new AudioContext();
+        
+        // iOS Safari requiere desbloquear el audio con una interacción directa
+        const unlockAudio = () => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            document.removeEventListener('click', unlockAudio);
+            document.removeEventListener('touchstart', unlockAudio);
+        };
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('touchstart', unlockAudio);
+
         beepAudio = function() {
             if(audioCtx.state === 'suspended') audioCtx.resume();
             const oscillator = audioCtx.createOscillator();
@@ -288,6 +336,14 @@ function setupSpeechRecognition() {
         // Como pusimos continuous=false, se detendrá solo. Aquí lo volvemos a encender.
         if (isListening) {
             try { recognition.start(); } catch(e) { stopListening(); }
+        }
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            stopListening();
+            showToast("Error: Permiso de micrófono denegado.");
         }
     };
 }
@@ -413,7 +469,7 @@ function processVoiceCommand(command) {
 
 async function fetchInventarioHoy() {
     try {
-        const response = await fetch(`${SERVER_URL}/api/inventario/hoy`);
+        const response = await fetch(`${SERVER_URL}/api/inventario/hoy`, { headers: getAuthHeaders() });
         if (response.ok) {
             const data = await response.json();
             recentItems = data.registros || [];
@@ -424,7 +480,7 @@ async function fetchInventarioHoy() {
 
 async function fetchProductosHistoricos() {
     try {
-        const response = await fetch(`${SERVER_URL}/api/productos`);
+        const response = await fetch(`${SERVER_URL}/api/productos`, { headers: getAuthHeaders() });
         if (response.ok) {
             const data = await response.json();
             historicoProductos = data.productos || [];
@@ -432,8 +488,24 @@ async function fetchProductosHistoricos() {
     } catch (error) {}
 }
 
-function downloadExcel() {
-    window.location.href = `${SERVER_URL}/api/descargar/hoy`;
+async function downloadExcel() {
+    try {
+        const response = await fetch(`${SERVER_URL}/api/descargar/hoy`, { headers: getAuthHeaders() });
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Inventario_Hoy.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } else {
+            alert('Error descargando Excel');
+        }
+    } catch (e) {
+        console.error(e);
+    }
 }
 
 async function sendToServer(categoria, producto, cantidad, fueCorregido = false) {
@@ -449,7 +521,7 @@ async function sendToServer(categoria, producto, cantidad, fueCorregido = false)
     try {
         const response = await fetch(`${SERVER_URL}/api/registro`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(payload)
         });
         if (response.ok) {
@@ -470,7 +542,7 @@ async function sendToServer(categoria, producto, cantidad, fueCorregido = false)
 async function undoLastItem() {
     if (recentItems.length === 0) return;
     try {
-        const response = await fetch(`${SERVER_URL}/api/registro/ultimo`, { method: 'DELETE' });
+        const response = await fetch(`${SERVER_URL}/api/registro/ultimo`, { method: 'DELETE', headers: getAuthHeaders() });
         if (response.ok) {
             fetchInventarioHoy();
             showToast("Registro borrado");
@@ -481,7 +553,7 @@ async function undoLastItem() {
 async function clearMonthInventory() {
     if (confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsto borrará TODO el inventario de la base de datos para empezar un nuevo mes.\n\n¡Asegúrate de haber descargado el Excel antes!")) {
         try {
-            const response = await fetch(`${SERVER_URL}/api/inventario/todo`, { method: 'DELETE' });
+            const response = await fetch(`${SERVER_URL}/api/inventario/todo`, { method: 'DELETE', headers: getAuthHeaders() });
             if (response.ok) {
                 fetchInventarioHoy();
                 historicoProductos = [];
@@ -586,7 +658,7 @@ function setupAdminTabs() {
     document.getElementById('form-usuario').addEventListener('submit', async (e) => {
         e.preventDefault();
         await fetch(`${SERVER_URL}/api/admin/usuarios`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: getAuthHeaders(),
             body: JSON.stringify({
                 dni: document.getElementById('new-user-dni').value,
                 nombre: document.getElementById('new-user-nombre').value,
@@ -601,7 +673,7 @@ function setupAdminTabs() {
     document.getElementById('form-categoria').addEventListener('submit', async (e) => {
         e.preventDefault();
         await fetch(`${SERVER_URL}/api/admin/categorias`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: getAuthHeaders(),
             body: JSON.stringify({ nombre: document.getElementById('new-cat-nombre').value })
         });
         e.target.reset();
@@ -611,7 +683,7 @@ function setupAdminTabs() {
     document.getElementById('form-diccionario').addEventListener('submit', async (e) => {
         e.preventDefault();
         await fetch(`${SERVER_URL}/api/admin/diccionario`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: getAuthHeaders(),
             body: JSON.stringify({
                 alias: document.getElementById('new-dict-alias').value,
                 real_name: document.getElementById('new-dict-real').value
@@ -629,7 +701,7 @@ function loadAdminData() {
 }
 
 async function loadAdminUsuarios() {
-    const res = await fetch(`${SERVER_URL}/api/admin/usuarios`);
+    const res = await fetch(`${SERVER_URL}/api/admin/usuarios`, { headers: getAuthHeaders() });
     const data = await res.json();
     const ul = document.getElementById('lista-usuarios');
     ul.innerHTML = '';
@@ -640,7 +712,7 @@ async function loadAdminUsuarios() {
         btn.className = 'btn-delete'; btn.textContent = 'Borrar';
         btn.onclick = async () => {
             if(confirm('¿Borrar usuario?')) {
-                await fetch(`${SERVER_URL}/api/admin/usuarios/${u.id}`, {method: 'DELETE'});
+                await fetch(`${SERVER_URL}/api/admin/usuarios/${u.id}`, {method: 'DELETE', headers: getAuthHeaders()});
                 loadAdminUsuarios();
             }
         };
@@ -650,7 +722,7 @@ async function loadAdminUsuarios() {
 }
 
 async function loadAdminCategorias() {
-    const res = await fetch(`${SERVER_URL}/api/admin/categorias`);
+    const res = await fetch(`${SERVER_URL}/api/admin/categorias`, { headers: getAuthHeaders() });
     const data = await res.json();
     const ul = document.getElementById('lista-categorias');
     ul.innerHTML = '';
@@ -661,7 +733,7 @@ async function loadAdminCategorias() {
         btn.className = 'btn-delete'; btn.textContent = 'Borrar';
         btn.onclick = async () => {
             if(confirm('¿Borrar categoría?')) {
-                await fetch(`${SERVER_URL}/api/admin/categorias/${c.id}`, {method: 'DELETE'});
+                await fetch(`${SERVER_URL}/api/admin/categorias/${c.id}`, {method: 'DELETE', headers: getAuthHeaders()});
                 loadAdminCategorias();
             }
         };
@@ -671,7 +743,7 @@ async function loadAdminCategorias() {
 }
 
 async function loadAdminDiccionario() {
-    const res = await fetch(`${SERVER_URL}/api/admin/diccionario`);
+    const res = await fetch(`${SERVER_URL}/api/admin/diccionario`, { headers: getAuthHeaders() });
     const data = await res.json();
     const ul = document.getElementById('lista-diccionario');
     ul.innerHTML = '';
@@ -682,7 +754,7 @@ async function loadAdminDiccionario() {
         btn.className = 'btn-delete'; btn.textContent = 'Borrar';
         btn.onclick = async () => {
             if(confirm('¿Borrar regla?')) {
-                await fetch(`${SERVER_URL}/api/admin/diccionario/${d.id}`, {method: 'DELETE'});
+                await fetch(`${SERVER_URL}/api/admin/diccionario/${d.id}`, {method: 'DELETE', headers: getAuthHeaders()});
                 loadAdminDiccionario();
             }
         };
@@ -731,4 +803,13 @@ window.addEventListener('appinstalled', () => {
     // Clear the deferredPrompt so it can be garbage collected
     deferredPrompt = null;
     console.log('PWA was installed');
+});
+
+// Efecto Parallax en el fondo (Bokeh)
+document.addEventListener('mousemove', (e) => {
+  const bokehContainer = document.getElementById('bokeh-container');
+  if(!bokehContainer) return;
+  const x = (e.clientX / window.innerWidth - 0.5) * 20;
+  const y = (e.clientY / window.innerHeight - 0.5) * 20;
+  bokehContainer.style.transform = `translate(${x}px, ${y}px)`;
 });

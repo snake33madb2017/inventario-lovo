@@ -9,8 +9,34 @@ from pydantic import BaseModel
 from openpyxl import Workbook
 import json
 import time
+from passlib.context import CryptContext
+import jwt
+from datetime import timedelta
+from fastapi import Depends
 
 app = FastAPI(title="Inventario Bar API")
+
+SECRET_KEY = "super_secreto_lovo_2026_cambiar_en_prod"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 horas
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def verify_password(plain_password, hashed_password):
+    return pwd_context.verify(plain_password, hashed_password)
+
+def get_password_hash(password):
+    return pwd_context.hash(password)
+
+def create_access_token(data: dict, expires_delta: timedelta = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,7 +75,7 @@ last_registro_time = 0.0
 last_registro_payload = ""
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(DB_FILE, timeout=10.0)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -100,7 +126,7 @@ def init_db():
     cursor.execute('SELECT COUNT(*) FROM usuarios')
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO usuarios (dni, nombre, password, rol) VALUES (?, ?, ?, ?)", 
-                       ("Z3738848L", "Marco Daza", "Lovo2026*", "encargado"))
+                       ("Z3738848L", "Marco Daza", get_password_hash("Lovo2026*"), "encargado"))
                        
     cursor.execute('SELECT COUNT(*) FROM categorias')
     if cursor.fetchone()[0] == 0:
@@ -121,6 +147,28 @@ def init_db():
 def startup_event():
     init_db()
 
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+security = HTTPBearer()
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        dni: str = payload.get("sub")
+        if dni is None:
+            raise HTTPException(status_code=401, detail="Token inválido")
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expirado")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+def check_is_admin(user: dict = Depends(get_current_user)):
+    if user.get("rol") != "encargado":
+        raise HTTPException(status_code=403, detail="Permisos insuficientes")
+    return user
+
 @app.post("/api/login")
 async def login(req: LoginRequest):
     try:
@@ -131,8 +179,12 @@ async def login(req: LoginRequest):
         user = cursor.fetchone()
         conn.close()
         
-        if user and user["password"] == req.password:
-            return {"status": "success", "nombre": user["nombre"], "rol": user["rol"]}
+        if user and verify_password(req.password, user["password"]):
+            access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            access_token = create_access_token(
+                data={"sub": dni_clean, "nombre": user["nombre"], "rol": user["rol"]}, expires_delta=access_token_expires
+            )
+            return {"status": "success", "nombre": user["nombre"], "rol": user["rol"], "token": access_token}
             
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
     except HTTPException:
@@ -143,7 +195,7 @@ async def login(req: LoginRequest):
 # ----- ENDPOINTS REGISTROS -----
 
 @app.post("/api/registro")
-async def añadir_registro(registro: Registro):
+async def añadir_registro(registro: Registro, user: dict = Depends(get_current_user)):
     global last_registro_time, last_registro_payload
     payload_str = f"{registro.categoria}|{registro.producto}|{registro.cantidad_dictada}|{registro.usuario}"
     current_time = time.time()
@@ -179,7 +231,7 @@ async def añadir_registro(registro: Registro):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/registro/ultimo")
-async def borrar_ultimo():
+async def borrar_ultimo(user: dict = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -196,7 +248,7 @@ async def borrar_ultimo():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/inventario/todo")
-async def borrar_todo_inventario():
+async def borrar_todo_inventario(user: dict = Depends(check_is_admin)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -208,7 +260,7 @@ async def borrar_todo_inventario():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/inventario/hoy")
-async def obtener_inventario_hoy():
+async def obtener_inventario_hoy(user: dict = Depends(get_current_user)):
     try:
         now = datetime.now()
         fecha_hoy = now.strftime("%d/%m/%Y")
@@ -226,7 +278,7 @@ async def obtener_inventario_hoy():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/productos")
-async def obtener_productos_historicos():
+async def obtener_productos_historicos(user: dict = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -240,7 +292,7 @@ async def obtener_productos_historicos():
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/descargar/hoy")
-async def descargar_excel_hoy():
+async def descargar_excel_hoy(user: dict = Depends(check_is_admin)):
     try:
         now = datetime.now()
         fecha_hoy = now.strftime("%d/%m/%Y")
@@ -264,8 +316,12 @@ async def descargar_excel_hoy():
             
         encabezados = ["Fecha", "Hora", "Categoría", "Producto", "Cantidad Dictada", "Botellas Llenas", "Restante (%)", "Usuario"]
         
+        import re
         for cat, filas in categorias_dict.items():
-            ws = wb_hoy.create_sheet(title=cat[:31])
+            cat_safe = re.sub(r'[\\*?:/\[\]]', '', cat)[:31]
+            if not cat_safe:
+                cat_safe = "Categoria"
+            ws = wb_hoy.create_sheet(title=cat_safe)
             ws.append(encabezados)
             for f in filas: ws.append(f)
                 
@@ -282,7 +338,7 @@ async def descargar_excel_hoy():
 # ----- ENDPOINTS ADMIN -----
 
 @app.get("/api/admin/usuarios")
-async def get_usuarios():
+async def get_usuarios(user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT id, dni, nombre, rol FROM usuarios')
@@ -291,11 +347,11 @@ async def get_usuarios():
     return users
 
 @app.post("/api/admin/usuarios")
-async def crear_usuario(u: NuevoUsuario):
+async def crear_usuario(u: NuevoUsuario, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        cursor.execute("INSERT INTO usuarios (dni, nombre, password, rol) VALUES (?, ?, ?, ?)", (u.dni.strip().upper(), u.nombre, u.password, u.rol))
+        cursor.execute("INSERT INTO usuarios (dni, nombre, password, rol) VALUES (?, ?, ?, ?)", (u.dni.strip().upper(), u.nombre, get_password_hash(u.password), u.rol))
         conn.commit()
     except sqlite3.IntegrityError:
         conn.close()
@@ -304,7 +360,7 @@ async def crear_usuario(u: NuevoUsuario):
     return {"status": "success"}
 
 @app.delete("/api/admin/usuarios/{uid}")
-async def borrar_usuario(uid: int):
+async def borrar_usuario(uid: int, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM usuarios WHERE id = ?', (uid,))
@@ -313,7 +369,7 @@ async def borrar_usuario(uid: int):
     return {"status": "success"}
 
 @app.get("/api/admin/categorias")
-async def get_categorias():
+async def get_categorias(user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT id, nombre FROM categorias')
@@ -322,7 +378,7 @@ async def get_categorias():
     return cats
 
 @app.post("/api/admin/categorias")
-async def crear_categoria(c: NuevaCategoria):
+async def crear_categoria(c: NuevaCategoria, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -335,7 +391,7 @@ async def crear_categoria(c: NuevaCategoria):
     return {"status": "success"}
 
 @app.delete("/api/admin/categorias/{cid}")
-async def borrar_categoria(cid: int):
+async def borrar_categoria(cid: int, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM categorias WHERE id = ?', (cid,))
@@ -344,7 +400,7 @@ async def borrar_categoria(cid: int):
     return {"status": "success"}
 
 @app.get("/api/admin/diccionario")
-async def get_diccionario():
+async def get_diccionario(user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT id, alias, real_name FROM diccionario')
@@ -353,7 +409,7 @@ async def get_diccionario():
     return d
 
 @app.post("/api/admin/diccionario")
-async def crear_diccionario(d: NuevoDiccionario):
+async def crear_diccionario(d: NuevoDiccionario, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -366,7 +422,7 @@ async def crear_diccionario(d: NuevoDiccionario):
     return {"status": "success"}
 
 @app.delete("/api/admin/diccionario/{did}")
-async def borrar_diccionario(did: int):
+async def borrar_diccionario(did: int, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM diccionario WHERE id = ?', (did,))
