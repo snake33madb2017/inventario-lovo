@@ -106,6 +106,12 @@ async function init() {
             }
         });
     }
+    const searchInput = document.getElementById('search-input');
+    if(searchInput) {
+        searchInput.addEventListener('input', () => {
+            renderList(searchInput.value.toLowerCase());
+        });
+    }
     
     setupAdminTabs();
 }
@@ -563,10 +569,9 @@ async function clearMonthInventory() {
     }
 }
 
-function renderList() {
+function renderList(filterText = '') {
     itemsList.innerHTML = '';
     
-    // Mostramos TODOS los registros del día, agrupados por categoría
     if (recentItems.length === 0) {
         itemsList.innerHTML = `<li class="item-card" style="justify-content: center; color: var(--text-muted); font-style: italic;">Sin registros hoy</li>`;
         undoBtn.disabled = true;
@@ -575,42 +580,80 @@ function renderList() {
     
     undoBtn.disabled = false;
     
-    // Agrupar por categoría manteniendo el orden (el más reciente saldrá primero)
+    // Group by category, but keep order within category
     const grupos = {};
     recentItems.forEach(item => {
         if (!grupos[item.categoria]) grupos[item.categoria] = [];
-        grupos[item.categoria].push(item);
+        // Filtering
+        if (filterText) {
+            if (item.producto.toLowerCase().includes(filterText)) {
+                grupos[item.categoria].push(item);
+            }
+        } else {
+            grupos[item.categoria].push(item);
+        }
     });
     
+    // Determine the category to auto-expand (usually the one from the most recent item, i.e., index 0)
+    let autoExpandCategory = null;
+    if (!filterText && recentItems.length > 0) {
+        autoExpandCategory = recentItems[0].categoria;
+    }
+    
     for (const [categoria, items] of Object.entries(grupos)) {
-        // Añadir encabezado de categoría
-        const header = document.createElement('li');
-        header.style.backgroundColor = '#1f2937'; // Fondo oscuro
-        header.style.color = '#fbbf24'; // Texto dorado
-        header.style.padding = '6px 12px';
-        header.style.marginTop = '12px';
-        header.style.marginBottom = '4px';
-        header.style.borderRadius = '6px';
-        header.style.fontWeight = 'bold';
-        header.style.fontSize = '0.85rem';
-        header.style.textTransform = 'uppercase';
-        header.style.letterSpacing = '1px';
-        header.textContent = categoria;
-        itemsList.appendChild(header);
+        if (items.length === 0) continue; // Skip empty categories after filter
+
+        // Create accordion header
+        const header = document.createElement('div');
+        header.className = 'category-header';
+        const isExpanded = (categoria === autoExpandCategory) || (filterText.length > 0);
+        if (isExpanded) header.classList.add('active');
         
-        // Añadir items de esta categoría
-        items.forEach(item => {
-            const li = document.createElement('li');
-            li.className = 'item-card';
+        header.innerHTML = `
+            <span>${categoria} <span style="color:var(--text-muted); font-size:0.7rem; margin-left:5px;">(${items.length})</span></span>
+            <span class="chevron">▼</span>
+        `;
+        
+        // Create accordion content
+        const contentContainer = document.createElement('div');
+        contentContainer.className = 'category-content';
+        if (isExpanded) contentContainer.classList.add('active');
+        
+        // Toggle logic
+        header.addEventListener('click', () => {
+            header.classList.toggle('active');
+            contentContainer.classList.toggle('active');
+        });
+        
+        // Render items inside content (Limit visually to 50 to prevent lag)
+        const renderLimit = 50;
+        const itemsToRender = items.slice(0, renderLimit);
+        
+        itemsToRender.forEach(item => {
+            const li = document.createElement('div');
+            li.className = 'item-card-compact';
             li.innerHTML = `
                 <div class="item-info">
                     <span class="item-name">${item.producto}</span>
-                    <span class="item-category" style="font-size:0.75rem">${item.hora}</span>
+                    <span class="item-time">${item.hora}</span>
                 </div>
                 <div class="item-quantity">${item.cantidad_dictada}</div>
             `;
-            itemsList.appendChild(li);
+            contentContainer.appendChild(li);
         });
+        
+        if (items.length > renderLimit) {
+            const moreMsg = document.createElement('div');
+            moreMsg.style.cssText = "font-size: 0.75rem; color: var(--text-muted); text-align: center; padding: 5px; font-style: italic;";
+            moreMsg.textContent = `...y ${items.length - renderLimit} más (descarga el Excel para ver todos)`;
+            contentContainer.appendChild(moreMsg);
+        }
+        
+        const wrapper = document.createElement('li');
+        wrapper.style.listStyle = 'none';
+        wrapper.appendChild(header);
+        wrapper.appendChild(contentContainer);
+        itemsList.appendChild(wrapper);
     }
 }
 

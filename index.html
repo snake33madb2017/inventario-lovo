@@ -18,29 +18,67 @@
 </head>
 <body>
     <!-- Vista de Inicio de Sesión -->
-    <div id="login-view" class="view active login-container">
-        <div class="login-box">
-            <img src="logo.png" alt="Lovo Logo" class="logo-large" onerror="this.style.display='none'">
-            <h1 class="login-title">Inventario Lovo Cocktail Bar Madrid</h1>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="dni-input">DNI / NIE</label>
-                    <input type="text" id="dni-input" placeholder="Ej: Z3738848L" required>
+        <div id="login-view" class="view active">
+        <!-- Luces de fondo -->
+        <div class="bokeh-container" id="bokeh-container">
+            <div class="bokeh b1"></div>
+            <div class="bokeh b2"></div>
+            <div class="bokeh b3"></div>
+        </div>
+
+        <div class="scene">
+            <!-- Animación Central del Bar -->
+            <div class="bar-area">
+                <div class="shaker" id="shaker">
+                    <div class="shaker-cap"></div>
+                    <div class="shaker-mid"></div>
+                    <div class="shaker-body"></div>
                 </div>
-                <div class="form-group">
-                    <label for="password-input">Contraseña</label>
-                    <input type="password" id="password-input" placeholder="Contraseña" required>
+                <div class="pour-liquid" id="pour-liquid"></div>
+                <div class="glass" id="glass">
+                    <div class="glass-bowl">
+                        <div class="lemon"></div>
+                        <div class="liquid" id="liquid"></div>
+                    </div>
+                    <div class="glass-stem"></div>
+                    <div class="glass-base"></div>
                 </div>
-                <button type="submit" class="login-btn">Ingresar</button>
-                <p id="login-error" class="login-error hidden">Credenciales incorrectas</p>
-            </form>
-            <div style="margin-top: 20px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center;">
-                <button id="install-app-btn" class="undo-btn hidden" style="width: fit-content; margin: 0 auto; font-size: 0.85rem; padding: 8px 16px; background-color: #f59e0b; color: white; border: none; font-weight: bold; border-radius: 8px; cursor: pointer;">
-                    📱 Instalar App en el Móvil
-                </button>
-                <button id="settings-btn-login" class="undo-btn" style="width: fit-content; margin: 0 auto; font-size: 0.75rem; padding: 4px 8px;">
-                    Configurar IP Server
-                </button>
+                <div class="bar-counter"></div>
+            </div>
+
+            <!-- Contenedor del Login -->
+            <div class="glass-login-container" id="login-container">
+                <h2 id="card-title" style="font-family: 'Playfair Display', serif; color: var(--primary-color); font-size: 1.5rem; margin-bottom: 25px;">COCTELERÍA LOVO</h2>
+                
+                <form id="login-form">
+                    <div class="input-group">
+                        <input type="text" id="dni-input" required placeholder=" " autocomplete="off">
+                        <label for="dni-input">DNI / NIE</label>
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="password" id="password-input" required placeholder=" " autocomplete="off">
+                        <label for="password-input">Contraseña</label>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn" style="background: var(--primary-color); border: none; border-radius: 10px; padding: 14px; color: #000; font-size: 1.1rem; font-family: 'Inter', sans-serif; font-weight: 600; cursor: pointer; width: 100%; transition: transform 0.2s; margin-top: 10px;">BIENVENIDO</button>
+                    <p id="login-error" class="login-error hidden" style="color: var(--danger-color); font-size: 0.9rem; margin-top: 15px;">Credenciales incorrectas</p>
+                </form>
+
+                <div id="success-message" style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 200px; opacity: 0; visibility: hidden; position: absolute; top: 60px; left: 0; width: 100%; transition: opacity 0.6s ease;">
+                    <h3 style="font-family: 'Playfair Display', serif; font-size: 2rem; color: var(--primary-color); margin: 0 0 10px 0;">CHEERS!</h3>
+                    <p style="font-size: 1rem; color: var(--text-main); font-family: 'Inter', sans-serif; margin: 5px 0;">Bienvenido, <span id="user-display-name" style="color: var(--primary-color); font-weight: 600;"></span></p>
+                    <p style="font-size: 1rem; color: var(--text-main); font-family: 'Inter', sans-serif; margin: 5px 0;">Autenticación exitosa</p>
+                </div>
+
+                <div style="margin-top: 25px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center;">
+                    <button id="install-app-btn" class="undo-btn hidden" style="width: fit-content; margin: 0 auto; font-size: 0.85rem; padding: 8px 16px; background-color: #f59e0b; color: white; border: none; font-weight: bold; border-radius: 8px; cursor: pointer;">
+                        📲 Instalar App en el Móvil
+                    </button>
+                    <button id="settings-btn-login" class="undo-btn" style="width: fit-content; margin: 0 auto; font-size: 0.75rem; padding: 4px 8px; background: transparent; color: var(--primary-color); border: 1px solid var(--primary-color); border-radius: 8px;">
+                        Configurar IP Server
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -91,6 +129,12 @@
                     </svg>
                 </button>
                 <p id="mic-status-text">Toca para hablar</p>
+                <button id="manual-btn" class="undo-btn" style="margin-top: 10px; border-color: var(--primary-color); color: var(--primary-color);">⌨️ Teclado Manual</button>
+                
+                <form id="manual-form" class="hidden" style="margin-top: 15px; display: flex; gap: 8px; width: 100%;">
+                    <input type="text" id="manual-input" placeholder="Ej: 1.5 Brugal" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" autocomplete="off">
+                    <button type="submit" class="download-btn">Enviar</button>
+                </form>
             </div>
 
             <div class="recognition-box">
@@ -111,6 +155,9 @@
                             Borrar
                         </button>
                     </div>
+                </div>
+                <div class="search-container" style="margin-top: 10px; margin-bottom: 10px;">
+                    <input type="text" id="search-input" placeholder="🔍 Buscar producto en el historial..." autocomplete="off">
                 </div>
                 <ul id="items-list" class="items-list">
                     <!-- Los items aparecerán aquí -->
