@@ -188,18 +188,23 @@ async function handleLogin(e) {
 }
 
 function forceSetupServerUrl() {
-    const currentIp = SERVER_URL.replace('http://', '').replace(':8000', '');
-    const ip = prompt("Introduce la IP local del servidor backend (Ej: 192.168.1.50 o localhost):", currentIp);
+    const ip = prompt("Si usas una IP local separada, indícala (Ej: http://192.168.1.50:8000). Si no, déjalo en blanco para usar la URL actual:");
     if (ip) {
-        SERVER_URL = `http://${ip}:8000`;
+        SERVER_URL = ip.startsWith('http') ? ip : `http://${ip}`;
         localStorage.setItem('server_url', SERVER_URL);
-        checkServerConnection();
+    } else {
+        SERVER_URL = window.location.origin;
+        localStorage.removeItem('server_url');
     }
+    checkServerConnection();
 }
 
 function setupServerUrl() {
-    if (!localStorage.getItem('server_url') || localStorage.getItem('server_url').includes('192.168.1.:8000')) {
-        forceSetupServerUrl();
+    const savedUrl = localStorage.getItem('server_url');
+    if (savedUrl) {
+        SERVER_URL = savedUrl;
+    } else {
+        SERVER_URL = window.location.origin;
     }
 }
 
