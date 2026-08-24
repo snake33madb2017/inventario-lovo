@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&family=Inter:wght@400;600;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     
-    <link rel="stylesheet" href="styles.css?v=14">
+    <link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body>
     <!-- Vista de Inicio de Sesión -->
@@ -73,7 +73,25 @@
     <div id="app-view" class="view hidden app-container">
         <header>
             <div class="header-left">
-                <img src="logo.png" alt="Lovo Logo" class="logo" onerror="this.style.display='none'">
+                <div style="width: 62.5px; height: 40px; position: relative;">
+                    <div class="bar-area" style="transform: scale(0.25); transform-origin: top left; margin: 0; position: absolute; top: 0; left: 0;">
+                        <div class="shaker" id="shaker">
+                            <div class="shaker-cap"></div>
+                            <div class="shaker-mid"></div>
+                            <div class="shaker-body"></div>
+                        </div>
+                        <div class="pour-liquid" id="pour-liquid"></div>
+                        <div class="glass" id="glass">
+                            <div class="glass-bowl">
+                                <div class="lemon"></div>
+                                <div class="liquid" id="liquid"></div>
+                            </div>
+                            <div class="glass-stem"></div>
+                            <div class="glass-base"></div>
+                        </div>
+                        <div class="bar-counter"></div>
+                    </div>
+                </div>
                 <div style="display: flex; gap: 8px;">
                     <button id="admin-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #3b82f6; border-color: #3b82f6;">
                         ⚙️ Admin
