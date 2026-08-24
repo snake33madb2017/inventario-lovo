@@ -18,6 +18,7 @@ const liveText = document.getElementById('live-text');
 const itemsList = document.getElementById('items-list');
 const undoBtn = document.getElementById('undo-btn');
 const downloadBtn = document.getElementById('download-btn');
+const emailExcelBtn = document.getElementById('email-excel-btn');
 const clearMonthBtn = document.getElementById('clear-month-btn');
 const adminToggleBtn = document.getElementById('admin-toggle-btn');
 const logoutBtn = document.getElementById('logout-btn');
@@ -74,6 +75,9 @@ async function init() {
     }
     if(downloadBtn) {
         downloadBtn.addEventListener('click', downloadExcel);
+    }
+    if(emailExcelBtn) {
+        emailExcelBtn.addEventListener('click', sendExcelEmail);
     }
     if(clearMonthBtn) {
         clearMonthBtn.addEventListener('click', clearMonthInventory);
@@ -144,10 +148,12 @@ function showApp(userName, userRol) {
     if(userRol === 'encargado') {
         adminToggleBtn.classList.remove('hidden');
         downloadBtn.classList.remove('hidden');
+        emailExcelBtn.classList.remove('hidden');
         clearMonthBtn.classList.remove('hidden');
     } else {
         adminToggleBtn.classList.add('hidden');
         downloadBtn.classList.add('hidden');
+        emailExcelBtn.classList.add('hidden');
         clearMonthBtn.classList.add('hidden');
     }
     
@@ -516,6 +522,29 @@ async function downloadExcel() {
         }
     } catch (e) {
         console.error(e);
+    }
+}
+
+async function sendExcelEmail() {
+    const originalText = emailExcelBtn.innerHTML;
+    emailExcelBtn.innerHTML = "⏳ Enviando...";
+    emailExcelBtn.disabled = true;
+    
+    try {
+        const response = await fetch(`${SERVER_URL}/api/admin/enviar-excel`, { method: 'POST', headers: getAuthHeaders() });
+        const result = await response.json();
+        
+        if (response.ok) {
+            alert(result.message || "Correo enviado con éxito.");
+        } else {
+            alert("Error al enviar: " + (result.detail || "revisa las variables SMTP del servidor"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión al intentar enviar el correo.");
+    } finally {
+        emailExcelBtn.innerHTML = originalText;
+        emailExcelBtn.disabled = false;
     }
 }
 

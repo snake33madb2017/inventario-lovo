@@ -10,6 +10,9 @@ from openpyxl import Workbook
 import json
 import time
 import bcrypt
+import smtplib
+import ssl
+from email.message import EmailMessage
 import jwt
 from datetime import timedelta
 from fastapi import Depends
@@ -336,6 +339,75 @@ async def descargar_excel_hoy(user: dict = Depends(check_is_admin)):
         return FileResponse(path=temp_file, filename=temp_file, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/enviar-excel")
+async def enviar_excel_correo(user: dict = Depends(check_is_admin)):
+    sender_email = os.getenv("SMTP_EMAIL")
+    sender_password = os.getenv("SMTP_PASSWORD")
+    receiver_email = os.getenv("SMTP_DESTINATION")
+
+    if not sender_email or not sender_password or not receiver_email:
+        raise HTTPException(status_code=400, detail="El correo no está configurado en el servidor (faltan variables SMTP).")
+
+    try:
+        now = datetime.now()
+        fecha_hoy = now.strftime("%d/%m/%Y")
+        fecha_archivo = now.strftime("%Y-%m-%d")
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY categoria ASC, hora ASC', (fecha_hoy,))
+        rows = cursor.fetchall()
+        conn.close()
+        
+        wb = Workbook()
+        wb.remove(wb.active)
+        
+        categorias_dict = {}
+        for row in rows:
+            cat = row["categoria"]
+            if cat not in categorias_dict: categorias_dict[cat] = []
+            categorias_dict[cat].append([row["fecha"], row["hora"], row["categoria"], row["producto"], row["cantidad_dictada"], row["botellas_llenas"], row["restante_porcentaje"], row["usuario"]])
+            
+        encabezados = ["Fecha", "Hora", "Categoría", "Producto", "Cantidad Dictada", "Botellas Llenas", "Restante (%)", "Usuario"]
+        
+        import re
+        for cat, filas in categorias_dict.items():
+            cat_safe = re.sub(r'[\\*?:/\[\]]', '', cat)[:31]
+            if not cat_safe: cat_safe = "Categoria"
+            ws = wb.create_sheet(title=cat_safe)
+            ws.append(encabezados)
+            for f in filas: ws.append(f)
+                
+        if len(wb.sheetnames) == 0:
+             ws = wb.create_sheet(title="Vacio")
+             ws.append(["No hay registros hoy"])
+                
+        temp_file = f"Inventario_Hoy_{fecha_archivo}.xlsx"
+        wb.save(temp_file)
+
+        # Enviar por correo
+        msg = EmailMessage()
+        msg['Subject'] = f'Inventario Lovo - {fecha_hoy}'
+        msg['From'] = sender_email
+        msg['To'] = receiver_email
+        msg.set_content(f"Hola,\n\nAdjunto el inventario del día {fecha_hoy} generado automáticamente por el sistema.\n\nSaludos,\nInventario Coctelería Lovo")
+
+        with open(temp_file, 'rb') as f:
+            file_data = f.read()
+            
+        msg.add_attachment(file_data, maintype='application', subtype='vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename=temp_file)
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+
+        os.remove(temp_file)
+        return {"status": "success", "message": "Correo enviado correctamente."}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al enviar correo: {str(e)}")
 
 # ----- ENDPOINTS ADMIN -----
 
