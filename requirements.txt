@@ -1,5 +1,9 @@
-fastapi==0.111.0
-uvicorn==0.29.0
+fastapi==0.103.2
+uvicorn==0.23.2
+pydantic==2.4.2
 openpyxl==3.1.2
+passlib==1.7.4
+bcrypt==4.1.2
+PyJWT==2.8.0
 pydantic==2.7.1
 aiofiles
