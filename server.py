@@ -178,7 +178,7 @@ def check_is_admin(user: dict = Depends(get_current_user)):
     return user
 
 @app.post("/api/login")
-async def login(req: LoginRequest):
+def login(req: LoginRequest):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -203,7 +203,7 @@ async def login(req: LoginRequest):
 # ----- ENDPOINTS REGISTROS -----
 
 @app.post("/api/registro")
-async def añadir_registro(registro: Registro, user: dict = Depends(get_current_user)):
+def añadir_registro(registro: Registro, user: dict = Depends(get_current_user)):
     global last_registro_time, last_registro_payload
     payload_str = f"{registro.categoria}|{registro.producto}|{registro.cantidad_dictada}|{registro.usuario}"
     current_time = time.time()
@@ -239,7 +239,7 @@ async def añadir_registro(registro: Registro, user: dict = Depends(get_current_
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/registro/ultimo")
-async def borrar_ultimo(user: dict = Depends(get_current_user)):
+def borrar_ultimo(user: dict = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -261,7 +261,7 @@ async def borrar_ultimo(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/inventario/todo")
-async def borrar_todo_inventario(user: dict = Depends(check_is_admin)):
+def borrar_todo_inventario(user: dict = Depends(check_is_admin)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -273,13 +273,13 @@ async def borrar_todo_inventario(user: dict = Depends(check_is_admin)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/inventario/hoy")
-async def obtener_inventario_hoy(user: dict = Depends(get_current_user)):
+def obtener_inventario_hoy(user: dict = Depends(get_current_user)):
     try:
         now = datetime.now()
         fecha_hoy = now.strftime("%d/%m/%Y")
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY hora DESC', (fecha_hoy,))
+        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY hora DESC LIMIT 150', (fecha_hoy,))
         rows = cursor.fetchall()
         conn.close()
         
@@ -291,7 +291,7 @@ async def obtener_inventario_hoy(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/productos")
-async def obtener_productos_historicos(user: dict = Depends(get_current_user)):
+def obtener_productos_historicos(user: dict = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -305,7 +305,7 @@ async def obtener_productos_historicos(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/descargar/hoy")
-async def descargar_excel_hoy(user: dict = Depends(check_is_admin)):
+def descargar_excel_hoy(user: dict = Depends(check_is_admin)):
     try:
         now = datetime.now()
         fecha_hoy = now.strftime("%d/%m/%Y")
@@ -349,7 +349,7 @@ async def descargar_excel_hoy(user: dict = Depends(check_is_admin)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/admin/enviar-excel")
-async def enviar_excel_correo(user: dict = Depends(check_is_admin)):
+def enviar_excel_correo(user: dict = Depends(check_is_admin)):
     sender_email = os.getenv("SMTP_EMAIL")
     sender_password = os.getenv("SMTP_PASSWORD")
     receiver_email = os.getenv("SMTP_DESTINATION")
@@ -420,7 +420,7 @@ async def enviar_excel_correo(user: dict = Depends(check_is_admin)):
 # ----- ENDPOINTS ADMIN -----
 
 @app.get("/api/admin/usuarios")
-async def get_usuarios(user: dict = Depends(check_is_admin)):
+def get_usuarios(user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT id, dni, nombre, rol FROM usuarios')
@@ -429,7 +429,7 @@ async def get_usuarios(user: dict = Depends(check_is_admin)):
     return users
 
 @app.post("/api/admin/usuarios")
-async def crear_usuario(u: NuevoUsuario, user: dict = Depends(check_is_admin)):
+def crear_usuario(u: NuevoUsuario, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -442,7 +442,7 @@ async def crear_usuario(u: NuevoUsuario, user: dict = Depends(check_is_admin)):
     return {"status": "success"}
 
 @app.delete("/api/admin/usuarios/{uid}")
-async def borrar_usuario(uid: int, user: dict = Depends(check_is_admin)):
+def borrar_usuario(uid: int, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM usuarios WHERE id = ?', (uid,))
@@ -451,7 +451,7 @@ async def borrar_usuario(uid: int, user: dict = Depends(check_is_admin)):
     return {"status": "success"}
 
 @app.get("/api/admin/categorias")
-async def get_categorias(user: dict = Depends(check_is_admin)):
+def get_categorias(user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT id, nombre FROM categorias')
@@ -460,7 +460,7 @@ async def get_categorias(user: dict = Depends(check_is_admin)):
     return cats
 
 @app.post("/api/admin/categorias")
-async def crear_categoria(c: NuevaCategoria, user: dict = Depends(check_is_admin)):
+def crear_categoria(c: NuevaCategoria, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -473,7 +473,7 @@ async def crear_categoria(c: NuevaCategoria, user: dict = Depends(check_is_admin
     return {"status": "success"}
 
 @app.delete("/api/admin/categorias/{cid}")
-async def borrar_categoria(cid: int, user: dict = Depends(check_is_admin)):
+def borrar_categoria(cid: int, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM categorias WHERE id = ?', (cid,))
@@ -482,7 +482,7 @@ async def borrar_categoria(cid: int, user: dict = Depends(check_is_admin)):
     return {"status": "success"}
 
 @app.get("/api/admin/diccionario")
-async def get_diccionario(user: dict = Depends(check_is_admin)):
+def get_diccionario(user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT id, alias, real_name FROM diccionario')
@@ -491,7 +491,7 @@ async def get_diccionario(user: dict = Depends(check_is_admin)):
     return d
 
 @app.post("/api/admin/diccionario")
-async def crear_diccionario(d: NuevoDiccionario, user: dict = Depends(check_is_admin)):
+def crear_diccionario(d: NuevoDiccionario, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
@@ -504,7 +504,7 @@ async def crear_diccionario(d: NuevoDiccionario, user: dict = Depends(check_is_a
     return {"status": "success"}
 
 @app.delete("/api/admin/diccionario/{did}")
-async def borrar_diccionario(did: int, user: dict = Depends(check_is_admin)):
+def borrar_diccionario(did: int, user: dict = Depends(check_is_admin)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM diccionario WHERE id = ?', (did,))
