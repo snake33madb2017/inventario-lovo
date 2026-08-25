@@ -51,7 +51,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_FILE = "inventario.db"
+import os
+# Si existe la carpeta /data (Disco de Render), usamos esa ruta. Si no, ruta local.
+DB_DIR = "/data" if os.path.exists("/data") else "."
+DB_FILE = os.path.join(DB_DIR, "inventario.db")
 
 class Registro(BaseModel):
     categoria: str
