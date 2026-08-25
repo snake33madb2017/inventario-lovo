@@ -385,8 +385,8 @@ const NUMEROS_ES = {
 function normalizeText(text) {
     let t = text.toLowerCase();
     
-    // Reemplaza comas literales entre números (ej. Android formatea "2,3" nativamente)
-    t = t.replace(/(\d),(\d)/g, '$1.$2');
+    // Reemplaza comas literales entre números (ej. Android formatea "2,3" o "2 , 3" nativamente)
+    t = t.replace(/(\d)\s*,\s*(\d)/g, '$1.$2');
     
     // Reemplaza palabras usadas como decimal
     t = t.replace(/\b(punto|coma|con)\b/g, '.');
@@ -403,7 +403,7 @@ function normalizeText(text) {
         t = t.replace(new RegExp(`\\b${word}\\b`, 'g'), NUMEROS_ES[word]);
     }
     
-    // Une los números con el punto decimal (ej. "2 . 3" o "2 .5" -> "2.3")
+    // Une los números con el punto decimal tolerando espacios (ej. "2 . 3" o "2 .5" o "2. 5" -> "2.5")
     t = t.replace(/(\d)\s*\.\s*(\d)/g, '$1.$2');
     
     return t;
@@ -556,8 +556,13 @@ async function undoLastItem() {
     try {
         const response = await fetch(`${SERVER_URL}/api/registro/ultimo`, { method: 'DELETE', headers: getAuthHeaders() });
         if (response.ok) {
-            fetchInventarioHoy();
-            showToast("Registro borrado");
+            const data = await response.json();
+            if (data.status === "warning") {
+                showToast(data.message);
+            } else {
+                fetchInventarioHoy();
+                showToast("Registro borrado");
+            }
         }
     } catch (error) {}
 }

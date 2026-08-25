@@ -240,7 +240,12 @@ async def borrar_ultimo(user: dict = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT id FROM registros ORDER BY id DESC LIMIT 1')
+        
+        if user.get("rol") == "encargado":
+            cursor.execute('SELECT id FROM registros ORDER BY id DESC LIMIT 1')
+        else:
+            cursor.execute('SELECT id FROM registros WHERE usuario = ? ORDER BY id DESC LIMIT 1', (user.get("nombre"),))
+            
         row = cursor.fetchone()
         if row:
             cursor.execute('DELETE FROM registros WHERE id = ?', (row['id'],))
@@ -248,7 +253,7 @@ async def borrar_ultimo(user: dict = Depends(get_current_user)):
             conn.close()
             return {"status": "success", "message": "Último registro eliminado"}
         conn.close()
-        return {"status": "warning", "message": "No hay registros"}
+        return {"status": "warning", "message": "No hay registros tuyos para borrar"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
