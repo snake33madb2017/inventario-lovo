@@ -504,13 +504,24 @@ def añadir_registro(registro: Registro, user: dict = Depends(get_current_user))
         else:
             botellas_llenas = int(registro.cantidad_dictada)
             restante_str = "-"
-
+            
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        # Safety net: si viene sin categoría, intentar buscarla o poner General
+        cat_final = registro.categoria
+        if not cat_final or cat_final.strip() == "":
+            cursor.execute('SELECT categoria FROM stock_referencia WHERE producto = ?', (registro.producto,))
+            row = cursor.fetchone()
+            if row:
+                cat_final = row['categoria']
+            else:
+                cat_final = "General"
+
         cursor.execute('''
             INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (fecha, hora, registro.categoria, registro.producto, registro.cantidad_dictada, botellas_llenas, restante_str, registro.usuario))
+        ''', (fecha, hora, cat_final, registro.producto, registro.cantidad_dictada, botellas_llenas, restante_str, registro.usuario))
         conn.commit()
         conn.close()
         return {"status": "success", "message": "Registro añadido correctamente"}
@@ -1417,7 +1428,7 @@ def borrar_usuario(uid: int, user: dict = Depends(check_is_admin)):
     return {"status": "success"}
 
 @app.get("/api/admin/categorias")
-def get_categorias(user: dict = Depends(check_is_admin)):
+def get_categorias(user: dict = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT id, nombre FROM categorias')
