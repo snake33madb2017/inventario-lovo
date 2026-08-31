@@ -547,7 +547,7 @@ def obtener_fechas_historial(user: dict = Depends(check_is_admin)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT DISTINCT fecha FROM registros ORDER BY id DESC')
+        cursor.execute('SELECT DISTINCT fecha FROM registros ORDER BY substr(fecha, 7, 4) || substr(fecha, 4, 2) || substr(fecha, 1, 2) DESC')
         rows = cursor.fetchall()
         conn.close()
         fechas = [r["fecha"] for r in rows if r["fecha"]]
