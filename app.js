@@ -23,6 +23,14 @@ const adminToggleBtn = document.getElementById('admin-toggle-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const categoryDropdown = document.getElementById('category-dropdown');
 const statusIndicator = document.getElementById('status-indicator');
+
+const laboratorioToggleBtn = document.getElementById('laboratorio-toggle-btn');
+const laboratorioView = document.getElementById('laboratorio-view');
+const closeLaboratorioBtn = document.getElementById('close-laboratorio-btn');
+const formRecetaContainer = document.getElementById('form-receta-container');
+const formReceta = document.getElementById('form-receta');
+const listaRecetas = document.getElementById('lista-recetas');
+
 const toast = document.getElementById('toast');
 
 const manualBtn = document.getElementById('manual-btn');
@@ -65,6 +73,16 @@ async function init() {
     undoBtn.addEventListener('click', undoLastItem);
     adminToggleBtn.addEventListener('click', toggleAdminView);
     closeAdminBtn.addEventListener('click', toggleAdminView);
+    
+    if(laboratorioToggleBtn) {
+        laboratorioToggleBtn.addEventListener('click', toggleLaboratorioView);
+    }
+    if(closeLaboratorioBtn) {
+        closeLaboratorioBtn.addEventListener('click', toggleLaboratorioView);
+    }
+    if(formReceta) {
+        formReceta.addEventListener('submit', handleCrearReceta);
+    }
     
     if(categoryDropdown) {
         categoryDropdown.addEventListener('change', (e) => {
@@ -138,8 +156,12 @@ function showApp(userName, userRol) {
     appView.classList.remove('hidden');
     appView.classList.add('active');
     adminView.classList.add('hidden');
+    if(laboratorioView) laboratorioView.classList.add('hidden');
     
-    userDisplay.textContent = userName + (userRol === 'encargado' ? ' (Encargado)' : ' (Camarero)');
+    let rolText = ' (Camarero)';
+    if(userRol === 'encargado') rolText = ' (Encargado)';
+    if(userRol === 'produccion') rolText = ' (Producción)';
+    userDisplay.textContent = userName + rolText;
     
     if(userRol === 'encargado') {
         adminToggleBtn.classList.remove('hidden');
@@ -149,6 +171,12 @@ function showApp(userName, userRol) {
         adminToggleBtn.classList.add('hidden');
         downloadBtn.classList.add('hidden');
         clearMonthBtn.classList.add('hidden');
+    }
+    
+    if(userRol === 'encargado' || userRol === 'produccion') {
+        if(laboratorioToggleBtn) laboratorioToggleBtn.classList.remove('hidden');
+    } else {
+        if(laboratorioToggleBtn) laboratorioToggleBtn.classList.add('hidden');
     }
     
     checkServerConnection();
@@ -689,11 +717,102 @@ function toggleAdminView() {
     if(adminView.classList.contains('hidden')) {
         adminView.classList.remove('hidden');
         appView.classList.add('hidden');
+        if(laboratorioView) laboratorioView.classList.add('hidden');
         loadAdminData();
     } else {
         adminView.classList.add('hidden');
         appView.classList.remove('hidden');
         checkServerConnection(); // Reload user side data (cats, dictionary)
+    }
+}
+
+// --- LABORATORIO LOGIC ---
+function toggleLaboratorioView() {
+    if(laboratorioView.classList.contains('hidden')) {
+        laboratorioView.classList.remove('hidden');
+        appView.classList.add('hidden');
+        adminView.classList.add('hidden');
+        loadRecetas();
+        
+        if (localStorage.getItem('usuario_lovo_rol') === 'encargado') {
+            formRecetaContainer.classList.remove('hidden');
+        } else {
+            formRecetaContainer.classList.add('hidden');
+        }
+    } else {
+        laboratorioView.classList.add('hidden');
+        appView.classList.remove('hidden');
+        checkServerConnection();
+    }
+}
+
+async function loadRecetas() {
+    try {
+        const res = await fetch(`${SERVER_URL}/api/recetas`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        listaRecetas.innerHTML = '';
+        const userRol = localStorage.getItem('usuario_lovo_rol');
+        
+        data.forEach(r => {
+            const card = document.createElement('div');
+            card.className = 'recipe-card';
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; color:var(--primary-color);">${r.nombre}</h3>
+                    <span style="font-size:0.8rem; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">${r.categoria}</span>
+                </div>
+                <div style="margin-top:10px;">
+                    <strong>Ingredientes:</strong><br>
+                    <div style="white-space: pre-wrap; font-size:0.9rem; color:var(--text-main); margin-bottom:10px;">${r.ingredientes}</div>
+                    <strong>Procedimiento:</strong><br>
+                    <div style="white-space: pre-wrap; font-size:0.9rem; color:var(--text-main);">${r.procedimiento}</div>
+                    ${userRol === 'encargado' ? `<div style="margin-top:10px; color:#10b981;"><strong>Coste Total:</strong> ${r.coste}</div>` : ''}
+                </div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button class="download-btn" onclick="producirLote(${r.id})" style="flex:1;">✅ Registrar Lote Producido</button>
+                    ${userRol === 'encargado' ? `<button class="btn-delete" onclick="borrarReceta(${r.id})">Borrar</button>` : ''}
+                </div>
+            `;
+            listaRecetas.appendChild(card);
+        });
+    } catch(e) { console.error("Error cargando recetas", e); }
+}
+
+async function handleCrearReceta(e) {
+    e.preventDefault();
+    try {
+        await fetch(`${SERVER_URL}/api/recetas`, {
+            method: 'POST', headers: getAuthHeaders(),
+            body: JSON.stringify({
+                nombre: document.getElementById('new-receta-nombre').value,
+                categoria: document.getElementById('new-receta-categoria').value,
+                ingredientes: document.getElementById('new-receta-ingredientes').value,
+                procedimiento: document.getElementById('new-receta-procedimiento').value,
+                coste: document.getElementById('new-receta-coste').value
+            })
+        });
+        e.target.reset();
+        loadRecetas();
+    } catch(err) { alert('Error creando receta'); }
+}
+
+async function borrarReceta(id) {
+    if(confirm('¿Borrar esta ficha técnica?')) {
+        await fetch(`${SERVER_URL}/api/recetas/${id}`, {method: 'DELETE', headers: getAuthHeaders()});
+        loadRecetas();
+    }
+}
+
+async function producirLote(id) {
+    if(confirm('¿Registrar 1 lote/botella producida en el inventario?')) {
+        try {
+            const res = await fetch(`${SERVER_URL}/api/recetas/${id}/producir`, {method: 'POST', headers: getAuthHeaders()});
+            if(res.ok) {
+                showToast("¡Lote registrado en el inventario!");
+            } else {
+                alert('Error registrando lote');
+            }
+        } catch(e) { alert('Error de conexión'); }
     }
 }
 

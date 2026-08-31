@@ -93,6 +93,9 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 8px;">
+                    <button id="laboratorio-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #10b981; border-color: #10b981;">
+                        🧪 Laboratorio
+                    </button>
                     <button id="admin-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #3b82f6; border-color: #3b82f6;">
                         ⚙️ Admin
                     </button>
@@ -195,6 +198,7 @@
                     <input type="password" id="new-user-pass" placeholder="Contraseña" required>
                     <select id="new-user-rol">
                         <option value="camarero">Camarero</option>
+                        <option value="produccion">Producción</option>
                         <option value="encargado">Encargado</option>
                     </select>
                     <button type="submit">Añadir Usuario</button>
@@ -225,6 +229,34 @@
         <footer style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 30px; padding-bottom: 20px;">
             Desarrollado por Marco Daza - 2026
         </footer>
+    </div>
+    
+    <!-- Panel de Laboratorio / Fichas Técnicas -->
+    <div id="laboratorio-view" class="view hidden admin-container">
+        <header>
+            <div class="header-left">
+                <h2>🧪 Laboratorio & Recetas</h2>
+            </div>
+            <button id="close-laboratorio-btn" class="undo-btn" style="color: white;">Cerrar Panel</button>
+        </header>
+        
+        <main style="padding: 1rem;">
+            <div id="form-receta-container" class="hidden" style="margin-bottom: 20px;">
+                <h3>Añadir Ficha Técnica</h3>
+                <form id="form-receta" class="admin-form">
+                    <input type="text" id="new-receta-nombre" placeholder="Nombre (Ej: Sirope de Frambuesa)" required>
+                    <input type="text" id="new-receta-categoria" placeholder="Categoría (Ej: Producción Garrafas)" required>
+                    <textarea id="new-receta-ingredientes" placeholder="Ingredientes (Ej: 1L Agua, 1kg Azúcar, 500g Frambuesa)" required style="width: 100%; margin-bottom: 10px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;"></textarea>
+                    <textarea id="new-receta-procedimiento" placeholder="Procedimiento (Ej: Mezclar en frío...)" required style="width: 100%; margin-bottom: 10px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;"></textarea>
+                    <input type="text" id="new-receta-coste" placeholder="Coste Total (Ej: 15.50€) - Solo lo ve encargado" required>
+                    <button type="submit">Guardar Receta</button>
+                </form>
+            </div>
+            
+            <div id="lista-recetas" style="display: flex; flex-direction: column; gap: 15px;">
+                <!-- Recetas inyectadas por JS -->
+            </div>
+        </main>
     </div>
 
     <div id="toast" class="toast">Notificación</div>

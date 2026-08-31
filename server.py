@@ -79,6 +79,13 @@ class NuevoDiccionario(BaseModel):
     alias: str
     real_name: str
 
+class NuevaReceta(BaseModel):
+    nombre: str
+    ingredientes: str
+    procedimiento: str
+    coste: str
+    categoria: str
+
 last_registro_time = 0.0
 last_registro_payload = ""
 
@@ -129,6 +136,17 @@ def init_db():
             real_name TEXT
         )
     ''')
+    # Recetas
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS recetas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE,
+            ingredientes TEXT,
+            procedimiento TEXT,
+            coste TEXT,
+            categoria TEXT
+        )
+    ''')
     
     # Defaults
     cursor.execute('SELECT COUNT(*) FROM usuarios')
@@ -174,6 +192,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 def check_is_admin(user: dict = Depends(get_current_user)):
     if user.get("rol") != "encargado":
+        raise HTTPException(status_code=403, detail="Permisos insuficientes")
+    return user
+
+def check_is_produccion_or_admin(user: dict = Depends(get_current_user)):
+    if user.get("rol") not in ["encargado", "produccion"]:
         raise HTTPException(status_code=403, detail="Permisos insuficientes")
     return user
 
@@ -511,6 +534,70 @@ def borrar_diccionario(did: int, user: dict = Depends(check_is_admin)):
     conn.commit()
     conn.close()
     return {"status": "success"}
+
+# ----- ENDPOINTS LABORATORIO / RECETAS -----
+
+@app.get("/api/recetas")
+def get_recetas(user: dict = Depends(check_is_produccion_or_admin)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT * FROM recetas')
+    rows = cursor.fetchall()
+    conn.close()
+    recetas = []
+    for r in rows:
+        receta = dict(r)
+        if user.get("rol") != "encargado":
+            receta["coste"] = "***" # Ocultar coste
+        recetas.append(receta)
+    return recetas
+
+@app.post("/api/recetas")
+def crear_receta(r: NuevaReceta, user: dict = Depends(check_is_admin)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO recetas (nombre, ingredientes, procedimiento, coste, categoria) VALUES (?, ?, ?, ?, ?)", 
+                       (r.nombre, r.ingredientes, r.procedimiento, r.coste, r.categoria))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=400, detail="La receta ya existe")
+    conn.close()
+    return {"status": "success"}
+
+@app.delete("/api/recetas/{rid}")
+def borrar_receta(rid: int, user: dict = Depends(check_is_admin)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('DELETE FROM recetas WHERE id = ?', (rid,))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.post("/api/recetas/{rid}/producir")
+def producir_receta(rid: int, user: dict = Depends(check_is_produccion_or_admin)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT nombre, categoria FROM recetas WHERE id = ?', (rid,))
+    receta = cursor.fetchone()
+    if not receta:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Receta no encontrada")
+    
+    # Registrar en el inventario como 1 botella/lote producido
+    now = datetime.now()
+    fecha = now.strftime("%d/%m/%Y")
+    hora = now.strftime("%H:%M:%S")
+    
+    cursor.execute('''
+        INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (fecha, hora, receta["categoria"], receta["nombre"], 1.0, 1, "-", f'{user.get("nombre")} (Lab)'))
+    
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": "Lote registrado en inventario"}
 
 # Servir archivos estáticos del frontend en la raíz
 app.mount("/", StaticFiles(directory=".", html=True), name="static")
