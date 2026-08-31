@@ -13,7 +13,9 @@ Como empleado de la casa, conozco de primera mano el tiempo y esfuerzo que requi
 El sistema actual ha demostrado que podemos:
 *   **Reducir drásticamente el tiempo de inventario:** De horas a minutos, gracias a la Inteligencia Artificial (reconocimiento de voz nativo).
 *   **Minimizar errores humanos:** El sistema corrige automáticamente palabras mal pronunciadas (ej. "brugau" a "Ron Brugal").
-*   **Agilizar la contabilidad:** Exportación automática a Excel sin tener que pasar datos a limpio.
+*   **Agilizar la contabilidad:** Exportación automática a Excel y cierres de ciclo limpios (semanal/mensual).
+*   **Gestión 100% Autónoma (Nuevo):** Panel de administración avanzado para los encargados donde controlan altas/bajas de plantilla, configuran categorías dinámicas y entrenan a la inteligencia de la app.
+*   **Seguridad y Flexibilidad (Nuevo):** Sistema de registro híbrido (voz y teclado manual para ruido extremo) y protección de datos mediante accesos con DNI y contraseña según roles (Camarero/Encargado).
 
 El éxito de la herramienta en este local demuestra que **está lista para escalar a los 6 locales del grupo**, multiplicando el ahorro de horas de trabajo y dinero para la empresa, y demostrando a los socios la capacidad tecnológica del grupo.
 

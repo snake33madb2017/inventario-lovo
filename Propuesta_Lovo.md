@@ -17,13 +17,14 @@ Esta plataforma es una **Aplicación Web Progresiva (PWA)** impulsada por tecnol
 
 El sistema ha sido desarrollado a medida para Coctelería Lovo, superando las limitaciones de plantillas genéricas o sistemas TPV estándar:
 
-1. **Reconocimiento de Voz Avanzado:** El equipo puede dictar los productos a través del micrófono de su dispositivo móvil, permitiendo tener las manos libres para mover botellas y agilizando el conteo exponencialmente.
-2. **Autocorrector Inteligente (Diccionario):** Un algoritmo entrenable que interpreta la fonética en barra y corrige automáticamente (por ejemplo, transcribiendo automáticamente "jagger" a "Jägermeister").
-3. **Clasificación Dinámica y Estructurada:** Agrupación automática de los productos por áreas (Cristalería, Destilados, Vinos, Siropes, etc.) para una lectura clara.
-4. **Exportación Instantánea a Excel:** Finalizado el conteo, un solo clic compila los datos y envía un informe detallado por correo electrónico, listo para ser revisado por contabilidad o gerencia.
-5. **Multiusuario Simultáneo:** Permite que 5 o más empleados trabajen al mismo tiempo en diferentes categorías, sincronizando los datos en tiempo real sin sobrescribir información.
-6. **Seguridad y Roles:** Separación estricta de permisos. El equipo base (Camareros) solo tiene acceso al conteo, mientras que la gerencia (Encargados) posee privilegios de edición, borrado y extracción de datos.
+1. **Reconocimiento de Voz y Registro Híbrido:** El equipo puede dictar los productos a través del micrófono de su dispositivo móvil, agilizando el conteo exponencialmente. Además, el sistema incorpora una interfaz de registro manual rápido por teclado, garantizando que el conteo no se detenga ni siquiera en momentos de ruido extremo.
+2. **Autocorrector Inteligente (Diccionario):** Un algoritmo entrenable que interpreta la fonética en barra y corrige automáticamente (por ejemplo, transcribiendo "jagger" a "Jägermeister").
+3. **Clasificación Dinámica y Estructurada:** Agrupación automática de los productos por áreas (Cristalería, Destilados, Vinos, etc.) para una lectura clara.
+4. **Exportación a Excel y Cierre de Ciclo:** Finalizado el conteo, un solo clic compila los datos y descarga un informe detallado. Una vez asegurada la información, el encargado dispone de una función de "Cierre" para resetear la base de datos y preparar el sistema para el siguiente ciclo.
+5. **Multiusuario Simultáneo:** Permite que varios empleados trabajen al mismo tiempo en diferentes categorías, sincronizando los datos en tiempo real sin sobrescribir información.
+6. **Seguridad, Roles y Autenticación:** Acceso restringido y seguro mediante DNI y contraseña para cada empleado. Separación estricta de permisos: los camareros solo registran o borran sus conteos, mientras que los encargados tienen control total sobre la base de datos.
 7. **Diseño Premium e Instalación Nativa:** Una interfaz moderna en "Modo Oscuro" (Dark Mode) que se instala en cualquier smartphone iOS o Android como una aplicación nativa.
+8. **Panel de Administración Autogestionado:** La gerencia dispone de un panel de configuración avanzado que les otorga total independencia técnica para gestionar la plantilla (altas/bajas de usuarios), crear o eliminar categorías dinámicamente, y entrenar al algoritmo añadiendo nuevas reglas de corrección fonética directamente desde la app.
 
 ---
 

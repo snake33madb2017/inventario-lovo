@@ -15,15 +15,16 @@ Cansado de este proceso, he programado una aplicación extremadamente sencilla, 
 
 No necesito aprender a usar programas complicados ni teclear en pantallas pequeñas. Solo necesito mi propio móvil (al igual que mis compañeros).
 
-1. Abro la aplicación en mi móvil (no tengo que descargar nada de la App Store).
-2. Toco un botón y hablo: "Una botella y media de Brugal" o "24 Coca-colas".
-3. El sistema que he diseñado me entiende, lo corrige si hace falta, y lo guarda al instante.
+1. Abro la aplicación web en mi móvil y accedo con mi DNI y contraseña de forma segura.
+2. Toco un botón y hablo: "Una botella y media de Brugal" o "24 Coca-colas". Si hay demasiado ruido en la sala, siempre puedo usar el teclado para el registro manual.
+3. El sistema que he diseñado me entiende, lo corrige si hace falta, y lo guarda al instante de forma centralizada.
 
 ## Beneficios Directos para el Negocio
 
 * **Reducción del 50% del tiempo:** Lo que antes me tomaba 2 horas, ahora lo hago en 45 minutos. Camino por el almacén simplemente dictando lo que veo.
 * **Cero Curva de Aprendizaje:** Si sé mandar una nota de voz por WhatsApp, sé hacer el inventario. No tengo ninguna fricción técnica y para mis compañeros es igual de natural.
-* **Excel Automático al Instante:** Cuando termino el inventario, pulso un botón y genero automáticamente el archivo Excel que necesitas para la gestoría, con los formatos perfectos. Tú lo recibes al momento.
+* **Autonomía Total (Panel de Control):** Como encargado, tengo un panel donde yo mismo creo categorías, añado nuevos usuarios y enseño a la app a entender nuestro argot, sin depender de técnicos.
+* **Excel Automático al Instante:** Cuando termino el inventario, pulso un botón y genero automáticamente el archivo Excel que necesitas para la gestoría, con los formatos perfectos. Tú lo recibes al momento y yo puedo "Cerrar el mes" con otro clic.
 * **Control Total de las Mermas:** Al resultarme tan fácil hacer el inventario, puedo hacerlo más a menudo (incluso a diario) sin quemarme. Así descubrirás dónde se pierde alcohol muchísimo antes.
 
 ## Pensado para Crecer (De 1 a 9 locales)
