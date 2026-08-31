@@ -1449,32 +1449,32 @@ function renderCatalogo(data) {
         const itemsCount = catData.length;
         
         const catCard = document.createElement('div');
-        catCard.className = 'balance-category-card';
+        catCard.className = 'accordion';
         
         const catHeader = document.createElement('div');
-        catHeader.className = 'balance-category-header';
+        catHeader.className = 'accordion-header';
         catHeader.innerHTML = `
             <span>${cat}</span>
-            <span style="font-size: 0.9rem; font-weight: normal; color: var(--primary-color);">${itemsCount} ítems <span class="arrow">▲</span></span>
+            <span style="font-size: 0.9rem; font-weight: normal; color: var(--primary-color);">${itemsCount} ítems <span class="arrow">▼</span></span>
         `;
         
         const catContent = document.createElement('div');
-        catContent.className = 'balance-category-content';
+        catContent.className = 'accordion-content';
         
         catHeader.onclick = () => {
-            catContent.classList.toggle('hidden');
+            catContent.classList.toggle('open');
             const arrow = catHeader.querySelector('.arrow');
             if(arrow) {
-                arrow.textContent = catContent.classList.contains('hidden') ? '▼' : '▲';
+                arrow.textContent = catContent.classList.contains('open') ? '▲' : '▼';
             }
         };
         
         catData.forEach(p => {
             const item = document.createElement('div');
             item.style.padding = '10px';
-            item.style.background = 'rgba(255,255,255,0.05)';
+            item.style.background = 'rgba(255,255,255,0.03)';
             item.style.borderRadius = '8px';
-            item.style.marginBottom = '10px';
+            item.style.border = '1px solid rgba(255,255,255,0.05)';
             item.style.display = 'flex';
             item.style.justifyContent = 'space-between';
             item.style.alignItems = 'center';
