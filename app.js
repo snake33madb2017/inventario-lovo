@@ -639,7 +639,7 @@ async function undoLastItem() {
 }
 
 async function clearMonthInventory() {
-    if (confirm("⚠️ ¿ESTÁS SEGURO?\n\nEsto borrará TODO el inventario de la base de datos para empezar un nuevo mes.\n\n¡Asegúrate de haber descargado el Excel antes!")) {
+    if (confirm("⚠️ GUARDAR CIERRE DE MES\n\nEsto guardará el conteo de HOY como el cierre definitivo de este mes, y borrará los conteos de días anteriores de este mismo mes.\n\nLos meses pasados (ej. Julio) se mantendrán en el historial.\n\n¡Asegúrate de haber descargado el Excel antes!")) {
         try {
             const response = await fetch(`${SERVER_URL}/api/inventario/todo`, { method: 'DELETE', headers: getAuthHeaders() });
             if (response.ok) {

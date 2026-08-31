@@ -55,7 +55,7 @@ app.add_middleware(
 import os
 # Si existe la carpeta /data (Disco de Render), usamos esa ruta. Si no, ruta local.
 DB_DIR = "/data" if os.path.exists("/data") else "."
-DB_FILE = os.path.join(DB_DIR, "inventario.db")
+DB_FILE = os.environ.get("DB_FILE", os.path.join(DB_DIR, "inventario.db"))
 
 class Registro(BaseModel):
     categoria: str
@@ -527,12 +527,50 @@ def borrar_ultimo(user: dict = Depends(get_current_user)):
 @app.delete("/api/inventario/todo")
 def borrar_todo_inventario(user: dict = Depends(check_is_admin)):
     try:
+        now = datetime.now()
+        fecha_hoy = now.strftime("%d/%m/%Y")
+        mes_año_actual = now.strftime("%m/%Y")
+        
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('DELETE FROM registros')
+        
+        # 1. Obtener todos los registros de hoy para calcular el stock final
+        cursor.execute('SELECT * FROM registros WHERE fecha = ?', (fecha_hoy,))
+        rows = cursor.fetchall()
+        
+        stock_act = {}
+        cat_map = {}
+        for row in rows:
+            prod = row['producto']
+            cat = row['categoria']
+            cat_map[prod] = cat
+            b = row['botellas_llenas']
+            r_str = row['restante_porcentaje']
+            r_val = 0.0
+            if r_str and r_str != '-':
+                try: r_val = float(str(r_str).replace('%','')) / 100.0
+                except: pass
+            
+            if prod not in stock_act: stock_act[prod] = 0.0
+            stock_act[prod] += (b + r_val)
+            
+        # 2. Actualizar el stock_referencia para que el mes siguiente se compare con el cierre de hoy
+        cursor.execute('UPDATE stock_referencia SET stock_anterior = 0.0')
+        
+        for prod, qty in stock_act.items():
+            cat = cat_map[prod]
+            cursor.execute('SELECT id FROM stock_referencia WHERE producto = ?', (prod,))
+            if cursor.fetchone():
+                cursor.execute('UPDATE stock_referencia SET stock_anterior = ? WHERE producto = ?', (qty, prod))
+            else:
+                cursor.execute('INSERT INTO stock_referencia (producto, categoria, stock_anterior, precio_unitario) VALUES (?, ?, ?, 0.0)', (prod, cat, qty))
+        
+        # 3. Borrar conteos de días anteriores de ESTE MES, manteniendo el de hoy (Cierre) y los meses pasados en el historial
+        cursor.execute('DELETE FROM registros WHERE fecha LIKE ? AND fecha != ?', (f'%/{mes_año_actual}', fecha_hoy))
+        
         conn.commit()
         conn.close()
-        return {"status": "success", "message": "Inventario borrado"}
+        return {"status": "success", "message": f"Cierre guardado para el {fecha_hoy} y stock de referencia actualizado."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -765,11 +803,19 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         comparativa = []
         todos = set(stock_ref.keys()) | set(stock_act.keys())
         for p in sorted(list(todos)):
+            s_ant_val = stock_ref[p].get('stock_anterior') if p in stock_ref else 0.0
+            s_ant = float(s_ant_val) if s_ant_val is not None else 0.0
+            
             s_act = stock_act[p] if p in stock_act else 0.0
-            precio = stock_ref[p]['precio_unitario'] if p in stock_ref else 0.0
+            
+            precio_val = stock_ref[p].get('precio_unitario') if p in stock_ref else 0.0
+            precio = float(precio_val) if precio_val is not None else 0.0
+            
+            diferencia = s_act - s_ant
+            coste_diferencia = diferencia * precio
             coste_total = s_act * precio
             usuarios_involucrados = ", ".join(sorted(list(stock_act_user.get(p, {"-"}))))
-            comparativa.append([p, s_act, precio, coste_total, usuarios_involucrados])
+            comparativa.append([p, s_ant, s_act, diferencia, precio, coste_total, coste_diferencia, usuarios_involucrados])
 
         # Estilos
         fill_header = PatternFill(start_color="D3A548", end_color="D3A548", fill_type="solid")
@@ -838,7 +884,7 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
 
         # 1. Productos-precio
         ws1 = wb.create_sheet(title="Productos-precio")
-        ws1.append(["Producto", "Cantidad", "Precio Unitario", "Total", "Auditado Por"])
+        ws1.append(["Producto", "Stock Anterior", "Stock Actual", "Diferencia", "Precio Unitario", "Total", "Coste Diferencia", "Auditado Por"])
         for cell in ws1[1]:
             cell.fill = fill_header
             cell.font = font_header
@@ -849,14 +895,17 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         for c in comparativa:
             ws1.append(c)
             ws1.cell(row=r_idx, column=1).alignment = align_left
-            for col in range(2, 6):
+            for col in range(2, 9):
                 ws1.cell(row=r_idx, column=col).alignment = align_center
             
             ws1.cell(row=r_idx, column=2).number_format = '0.00'
-            ws1.cell(row=r_idx, column=3).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
-            ws1.cell(row=r_idx, column=4).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
+            ws1.cell(row=r_idx, column=3).number_format = '0.00'
+            ws1.cell(row=r_idx, column=4).number_format = '0.00'
+            ws1.cell(row=r_idx, column=5).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
+            ws1.cell(row=r_idx, column=6).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
+            ws1.cell(row=r_idx, column=7).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
             
-            for col in range(1, 6):
+            for col in range(1, 9):
                 cell = ws1.cell(row=r_idx, column=col)
                 cell.fill = fill_data
                 cell.font = font_data
@@ -890,20 +939,19 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         total_consumption_value = 0.0
         total_stock_ant_value = 0.0
         
-        for p, s_act, precio, coste_total, usr in comparativa:
+        for p, s_ant, s_act, diferencia, precio, coste_total, coste_diferencia, usr in comparativa:
             total_stock_value += (s_act * precio)
-            total_consumption_value += coste_total
+            total_consumption_value += coste_diferencia
             
-            s_ant = stock_ref[p]['stock_anterior'] if p in stock_ref else 0.0
             total_stock_ant_value += (s_ant * precio)
             
-            cat = stock_ref[p]['categoria'] if p in stock_ref else 'Sin Categoría'
+            cat = stock_ref[p].get('categoria', 'Sin Categoría') if p in stock_ref else 'Sin Categoría'
             if cat not in cat_agg:
                 cat_agg[cat] = {'stock_ant': 0.0, 'stock_act': 0.0, 'cons_neto': 0.0}
             
             cat_agg[cat]['stock_ant'] += (s_ant * precio)
             cat_agg[cat]['stock_act'] += (s_act * precio)
-            cat_agg[cat]['cons_neto'] += coste_total
+            cat_agg[cat]['cons_neto'] += coste_diferencia
 
         merma_promedio = (total_consumption_value / total_stock_ant_value) if total_stock_ant_value > 0 else 0.0
         cobertura = (total_stock_value / total_consumption_value) if total_consumption_value > 0 else 0.0
