@@ -187,11 +187,11 @@ def inicializar_stock_julio(conn):
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM registros WHERE fecha = '31/07/2026'")
     if cursor.fetchone()[0] > 0:
-        return
+        return "Ya existe"
         
     import os
     if not os.path.exists("STOCK JULIO.xlsx"):
-        return
+        return "No existe el archivo"
         
     try:
         import pandas as pd
@@ -269,11 +269,22 @@ def inicializar_stock_julio(conn):
                     botellas, pct = split_bottles_and_pct(qty_g)
                     records.append(("31/07/2026", "00:00:00", "Producción Garrafas", normalizar_producto(prod_g), qty_g, botellas, pct, "Cierre Julio"))
                     
-        if records:
             cursor.executemany("INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", records)
             conn.commit()
+            return "Éxito: " + str(len(records)) + " registros insertados."
     except Exception as e:
         print("Error inicializando stock julio:", e)
+        return "Error: " + str(e)
+
+@app.get("/api/debug/julio")
+def debug_julio():
+    try:
+        conn = get_db_connection()
+        res = inicializar_stock_julio(conn)
+        conn.close()
+        return {"resultado": res}
+    except Exception as e:
+        return {"error": str(e)}
 
 def load_stock_referencia(conn):
     cursor = conn.cursor()
