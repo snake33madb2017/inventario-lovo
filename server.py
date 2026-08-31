@@ -162,7 +162,8 @@ def init_db():
             producto TEXT UNIQUE,
             categoria TEXT,
             stock_anterior REAL,
-            precio_unitario REAL
+            precio_unitario REAL,
+            stock_ideal REAL DEFAULT 0.0
         )
     ''')
     
@@ -185,6 +186,14 @@ def init_db():
             cursor.execute("INSERT INTO diccionario (alias, real_name) VALUES (?, ?)", (alias, real_name))
 
     conn.commit()
+    
+    # Migrations
+    try:
+        cursor.execute("ALTER TABLE stock_referencia ADD COLUMN stock_ideal REAL DEFAULT 0.0")
+        conn.commit()
+    except Exception:
+        pass # Column already exists
+        
     load_stock_referencia(conn)
     inicializar_stock_julio(conn)
     sincronizar_categorias(conn)
@@ -645,6 +654,34 @@ def obtener_inventario_hoy(user: dict = Depends(get_current_user)):
         for row in rows:
             registros.append(dict(row))
         return {"registros": registros}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+class AjusteIdeal(BaseModel):
+    producto: str
+    stock_ideal: float
+
+@app.get("/api/catalogo")
+def obtener_catalogo(user: dict = Depends(check_is_admin)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT producto, categoria, stock_ideal FROM stock_referencia ORDER BY categoria, producto')
+        rows = cursor.fetchall()
+        conn.close()
+        return [{"producto": r["producto"], "categoria": r["categoria"], "stock_ideal": r["stock_ideal"]} for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/catalogo/ideal")
+def actualizar_stock_ideal(ajuste: AjusteIdeal, user: dict = Depends(check_is_admin)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE stock_referencia SET stock_ideal = ? WHERE producto = ?', (ajuste.stock_ideal, ajuste.producto))
+        conn.commit()
+        conn.close()
+        return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

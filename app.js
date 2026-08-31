@@ -549,7 +549,7 @@ function updateProgressBar() {
     let total = historicoProductos.length;
     
     for (let ref of historicoProductos) {
-        if (dictadosSet.has(ref.nombre.toLowerCase())) {
+        if (typeof ref === 'string' && dictadosSet.has(ref.toLowerCase())) {
             counted++;
         }
     }
@@ -1411,3 +1411,229 @@ document.getElementById('form-ajuste-manual').addEventListener('submit', async (
         alert("Error de conexión");
     }
 });
+
+
+// === FASE 1: ANALÍTICA Y LISTA DE COMPRA ===
+
+let chartGasto = null;
+let chartTop = null;
+let catalogoData = [];
+
+async function loadCatalogo() {
+    try {
+        const response = await fetch(SERVER_URL + '/api/catalogo', { headers: getAuthHeaders() });
+        if(response.ok) {
+            catalogoData = await response.json();
+            renderCatalogo(catalogoData);
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function renderCatalogo(data) {
+    const container = document.getElementById('lista-catalogo');
+    if(!container) return;
+    container.innerHTML = '';
+    
+    data.forEach(p => {
+        const item = document.createElement('div');
+        item.style.padding = '10px';
+        item.style.background = 'rgba(255,255,255,0.05)';
+        item.style.borderRadius = '8px';
+        item.style.display = 'flex';
+        item.style.justifyContent = 'space-between';
+        item.style.alignItems = 'center';
+        
+        item.innerHTML = `
+            <div>
+                <strong>${p.producto}</strong> <br>
+                <small style="color:var(--primary-color)">${p.categoria}</small>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <label style="font-size:0.8rem; color:#aaa;">Ideal:</label>
+                <input type="number" step="0.5" min="0" value="${p.stock_ideal}" 
+                       onchange="updateStockIdeal('${p.producto.replace(/'/g, "\\'")}', this.value)"
+                       style="width: 70px; padding: 5px; border-radius: 5px; background: rgba(0,0,0,0.5); border: 1px solid var(--primary-color); color: white; text-align: center;">
+            </div>
+        `;
+        container.appendChild(item);
+    });
+}
+
+async function updateStockIdeal(producto, value) {
+    const valFloat = parseFloat(value) || 0;
+    try {
+        await fetch(SERVER_URL + '/api/catalogo/ideal', {
+            method: 'PUT',
+            headers: Object.assign({'Content-Type': 'application/json'}, getAuthHeaders()),
+            body: JSON.stringify({ producto, stock_ideal: valFloat })
+        });
+        
+        const item = catalogoData.find(x => x.producto === producto);
+        if(item) item.stock_ideal = valFloat;
+    } catch(e) {
+        alert('Error al actualizar el stock ideal');
+    }
+}
+
+const searchCatalogo = document.getElementById('search-catalogo');
+if(searchCatalogo) {
+    searchCatalogo.addEventListener('input', (e) => {
+        const text = e.target.value.toLowerCase();
+        const filtered = catalogoData.filter(p => p.producto.toLowerCase().includes(text) || p.categoria.toLowerCase().includes(text));
+        renderCatalogo(filtered);
+    });
+}
+
+async function loadAnalitica() {
+    try {
+        const response = await fetch(SERVER_URL + '/api/inventario/comparativa', { headers: getAuthHeaders() });
+        if(!response.ok) return;
+        const data = await response.json();
+        
+        const categorias = {};
+        const consumoList = [];
+        
+        data.comparativa.forEach(c => {
+            const gasto = c.consumo * (c.precio_unitario || 0);
+            if(!categorias[c.categoria]) categorias[c.categoria] = 0;
+            categorias[c.categoria] += gasto;
+            
+            if(c.consumo > 0) {
+                consumoList.push({producto: c.producto, consumo: c.consumo});
+            }
+        });
+        
+        consumoList.sort((a,b) => b.consumo - a.consumo);
+        const top5 = consumoList.slice(0, 5);
+        
+        renderCharts(categorias, top5);
+        
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+function renderCharts(cats, top5) {
+    const container = document.getElementById('dashboard-container');
+    if(!container) return;
+    
+    container.innerHTML = `
+        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+            <h4 style="text-align:center; margin-bottom: 15px; color: var(--primary-color);">Gasto por Categoría (€)</h4>
+            <canvas id="chartCategorias"></canvas>
+        </div>
+        <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+            <h4 style="text-align:center; margin-bottom: 15px; color: var(--primary-color);">Top 5 Consumo (Botellas)</h4>
+            <canvas id="chartTop"></canvas>
+        </div>
+    `;
+    
+    const catLabels = Object.keys(cats);
+    const catData = Object.values(cats);
+    const bgColors = catLabels.map((_, i) => `hsl(${(i * 360 / catLabels.length)}, 70%, 50%)`);
+    
+    if(window.Chart) {
+        new Chart(document.getElementById('chartCategorias'), {
+            type: 'pie',
+            data: {
+                labels: catLabels,
+                datasets: [{
+                    data: catData,
+                    backgroundColor: bgColors,
+                    borderWidth: 1,
+                    borderColor: '#1e293b'
+                }]
+            },
+            options: { plugins: { legend: { labels: { color: 'white' } } } }
+        });
+        
+        new Chart(document.getElementById('chartTop'), {
+            type: 'bar',
+            data: {
+                labels: top5.map(x => x.producto.substring(0, 15) + (x.producto.length > 15 ? '...' : '')),
+                datasets: [{
+                    label: 'Botellas Consumidas',
+                    data: top5.map(x => x.consumo),
+                    backgroundColor: 'rgba(211, 165, 72, 0.7)',
+                    borderColor: 'rgba(211, 165, 72, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: { 
+                scales: { 
+                    y: { ticks: { color: '#aaa' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    x: { ticks: { color: '#aaa' }, grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const target = btn.dataset.tab;
+        if(target === 'tab-compras') loadCatalogo();
+        if(target === 'tab-analitica') loadAnalitica();
+    });
+});
+
+const btnPedido = document.getElementById('btn-generar-pedido');
+if(btnPedido) {
+    btnPedido.addEventListener('click', async () => {
+        if(!catalogoData.length) return alert('Cargando catálogo, espera un momento...');
+        
+        try {
+            const response = await fetch(SERVER_URL + '/api/inventario/comparativa', { headers: getAuthHeaders() });
+            const data = await response.json();
+            
+            let pedidoText = "🛒 *LISTA DE LA COMPRA - LOVO*\n\n";
+            let itemsCount = 0;
+            
+            data.comparativa.forEach(c => {
+                const catItem = catalogoData.find(x => x.producto === c.producto);
+                const ideal = catItem ? catItem.stock_ideal : 0;
+                
+                if(ideal > 0 && c.stock_actual < ideal) {
+                    const aPedir = Math.ceil(ideal - c.stock_actual);
+                    pedidoText += `- ${aPedir}x ${c.producto}\n`;
+                    itemsCount++;
+                }
+            });
+            
+            if(itemsCount === 0) {
+                alert('¡Todo perfecto! No necesitas pedir nada, el stock actual supera al ideal en todos los productos configurados.');
+                return;
+            }
+            
+            const modalHtml = `
+                <div style="padding: 20px;">
+                    <h3 style="color:var(--primary-color); margin-bottom: 15px;">Lista Generada</h3>
+                    <textarea style="width:100%; height:200px; background:rgba(0,0,0,0.5); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:10px;" id="pedido-textarea" readonly>${pedidoText}</textarea>
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('pedido-textarea').value); alert('¡Copiado al portapapeles!');" style="width:100%; margin-top:15px; padding:12px; background:var(--primary-color); color:#000; font-weight:bold; border-radius:8px; cursor:pointer; border:none;">📋 Copiar para WhatsApp</button>
+                    <button onclick="document.getElementById('modal-ajuste-manual').classList.add('hidden')" style="width:100%; margin-top:10px; padding:12px; background:transparent; color:#aaa; border:none; cursor:pointer;">Cerrar</button>
+                </div>
+            `;
+            
+            const modal = document.getElementById('modal-ajuste-manual');
+            const content = modal.querySelector('.modal-content');
+            
+            const originalContent = content.innerHTML;
+            content.innerHTML = modalHtml;
+            modal.classList.remove('hidden');
+            
+            const closeBtn = content.querySelector('button:last-child');
+            closeBtn.onclick = () => {
+                modal.classList.add('hidden');
+                setTimeout(() => { content.innerHTML = originalContent; }, 300);
+            };
+            
+        } catch(e) {
+            console.error(e);
+            alert('Error generando el pedido');
+        }
+    });
+}
+

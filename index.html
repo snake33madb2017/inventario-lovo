@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&family=Inter:wght@400;600;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
-    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="styles.css?v=15">
 </head>
 <body>
@@ -197,8 +197,28 @@
                 <button class="tab-btn active" data-tab="tab-usuarios">Usuarios</button>
                 <button class="tab-btn" data-tab="tab-categorias">Categorías</button>
                 <button class="tab-btn" data-tab="tab-diccionario">Diccionario</button>
+                <button class="tab-btn" data-tab="tab-compras">Compras</button>
+                <button class="tab-btn" data-tab="tab-analitica">Analítica</button>
                 <button class="tab-btn" data-tab="tab-historial">Historial</button>
                 <button class="tab-btn" data-tab="tab-balance">Balance</button>
+            </div>
+
+            <div id="tab-analitica" class="tab-content hidden">
+                <h3>Analítica del Mes</h3>
+                <div id="dashboard-container" style="display: flex; flex-direction: column; gap: 20px;">
+                    <!-- Canvas for Chart.js will be injected here -->
+                </div>
+            </div>
+
+            <div id="tab-compras" class="tab-content hidden">
+                <h3>Catálogo y Pedidos</h3>
+                <button id="btn-generar-pedido" class="download-btn" style="margin-bottom: 15px; width: 100%;">🛒 Generar Lista de Compra</button>
+                <div class="search-bar" style="margin-bottom: 15px;">
+                    <input type="text" id="search-catalogo" placeholder="Buscar producto para definir stock ideal..." style="width: 100%; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                </div>
+                <div id="lista-catalogo" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Items injected by JS -->
+                </div>
             </div>
 
             <div id="tab-usuarios" class="tab-content active">
