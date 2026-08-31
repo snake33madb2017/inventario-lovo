@@ -777,12 +777,13 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         wb.remove(wb.active)
 
         def format_sheet(ws):
-            for col in ws.columns:
+            from openpyxl.utils import get_column_letter
+            for idx, col in enumerate(ws.columns, 1):
                 max_length = 0
-                column = col[0].column_letter
+                column = get_column_letter(idx)
                 for cell in col:
                     try:
-                        if len(str(cell.value)) > max_length:
+                        if cell.value and len(str(cell.value)) > max_length:
                             max_length = len(str(cell.value))
                     except:
                         pass
