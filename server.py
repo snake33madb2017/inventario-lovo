@@ -718,6 +718,7 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         stock_ref = {row['producto']: dict(row) for row in ref_rows}
         
         stock_act = {}
+        stock_act_user = {}
         # Para agrupar por pestañas
         data_lovo = {}
         data_cristaleria = {}
@@ -726,7 +727,15 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         for row in rows:
             prod = row['producto']
             cat = row['categoria']
+            try:
+                usuario = row['usuario']
+                if not usuario: usuario = 'Sistema'
+            except:
+                usuario = 'Sistema'
+            
             if prod not in stock_act: stock_act[prod] = 0.0
+            if prod not in stock_act_user: stock_act_user[prod] = set()
+            stock_act_user[prod].add(usuario)
             
             b = row['botellas_llenas']
             r_str = row['restante_porcentaje']
@@ -740,7 +749,7 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             
             # Separar por pestañas
             cat_lower = cat.lower() if cat else ''
-            item_data = [prod, total_qty]
+            item_data = [prod, total_qty, usuario]
             
             if 'cristaleria' in cat_lower or 'cristalería' in cat_lower:
                 if cat not in data_cristaleria: data_cristaleria[cat] = []
@@ -759,7 +768,8 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             s_act = stock_act[p] if p in stock_act else 0.0
             precio = stock_ref[p]['precio_unitario'] if p in stock_ref else 0.0
             coste_total = s_act * precio
-            comparativa.append([p, s_act, precio, coste_total])
+            usuarios_involucrados = ", ".join(sorted(list(stock_act_user.get(p, {"-"}))))
+            comparativa.append([p, s_act, precio, coste_total, usuarios_involucrados])
 
         # Estilos
         fill_header = PatternFill(start_color="D3A548", end_color="D3A548", fill_type="solid")
@@ -828,7 +838,7 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
 
         # 1. Productos-precio
         ws1 = wb.create_sheet(title="Productos-precio")
-        ws1.append(["Producto", "Cantidad", "Precio Unitario", "Total"])
+        ws1.append(["Producto", "Cantidad", "Precio Unitario", "Total", "Auditado Por"])
         for cell in ws1[1]:
             cell.fill = fill_header
             cell.font = font_header
@@ -839,14 +849,14 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         for c in comparativa:
             ws1.append(c)
             ws1.cell(row=r_idx, column=1).alignment = align_left
-            for col in range(2, 5):
+            for col in range(2, 6):
                 ws1.cell(row=r_idx, column=col).alignment = align_center
             
             ws1.cell(row=r_idx, column=2).number_format = '0.00'
             ws1.cell(row=r_idx, column=3).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
             ws1.cell(row=r_idx, column=4).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
             
-            for col in range(1, 5):
+            for col in range(1, 6):
                 cell = ws1.cell(row=r_idx, column=col)
                 cell.fill = fill_data
                 cell.font = font_data
@@ -857,17 +867,17 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         # 2. Stock lovo
         if data_lovo:
             ws2 = wb.create_sheet(title="Stock lovo")
-            write_category_data(ws2, data_lovo, ["Producto", "TOTAL"])
+            write_category_data(ws2, data_lovo, ["Producto", "TOTAL", "Auditado Por"])
             
         # 3. Cristaleria
         if data_cristaleria:
             ws3 = wb.create_sheet(title="Cristaleria")
-            write_category_data(ws3, data_cristaleria, ["Producto", "TOTAL"])
+            write_category_data(ws3, data_cristaleria, ["Producto", "TOTAL", "Auditado Por"])
             
         # 4. Stock producciones
         if data_producciones:
             ws4 = wb.create_sheet(title="Stock producciones")
-            write_category_data(ws4, data_producciones, ["Producto", "TOTAL"])
+            write_category_data(ws4, data_producciones, ["Producto", "TOTAL", "Auditado Por"])
 
         # 5. Balance y KPIs
         from openpyxl.chart import PieChart, BarChart, Reference
@@ -880,7 +890,7 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         total_consumption_value = 0.0
         total_stock_ant_value = 0.0
         
-        for p, s_act, precio, coste_total in comparativa:
+        for p, s_act, precio, coste_total, usr in comparativa:
             total_stock_value += (s_act * precio)
             total_consumption_value += coste_total
             
