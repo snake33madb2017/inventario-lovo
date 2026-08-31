@@ -1016,11 +1016,26 @@ function setupAdminTabs() {
     if (balanceSearchInput) {
         balanceSearchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#balance-table-body tr');
-            rows.forEach(row => {
-                const prod = row.children[1].textContent.toLowerCase();
-                if(prod.includes(term)) row.style.display = '';
-                else row.style.display = 'none';
+            const container = document.getElementById('balance-cards-container');
+            if(!container) return;
+            const accordions = container.querySelectorAll('.accordion');
+            accordions.forEach(acc => {
+                const cards = acc.querySelectorAll('.history-card');
+                let hasMatch = false;
+                cards.forEach(card => {
+                    if(card.dataset.prod.includes(term)) {
+                        card.style.display = 'flex';
+                        hasMatch = true;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                if(hasMatch) {
+                    acc.style.display = 'block';
+                    if(term.length > 0) acc.querySelector('.accordion-content').classList.add('open');
+                } else {
+                    acc.style.display = 'none';
+                }
             });
         });
     }
@@ -1110,37 +1125,74 @@ async function loadBalancePorFecha(fecha) {
     try {
         const res = await fetch(`${SERVER_URL}/api/inventario/comparativa?fecha=${encodeURIComponent(fecha)}`, { headers: getAuthHeaders() });
         const data = await res.json();
-        const tbody = document.getElementById('balance-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+        const container = document.getElementById('balance-cards-container');
+        if (!container) return;
+        container.innerHTML = '';
         
         let costeTotal = 0;
+        const categorias = {};
         
         data.comparativa.forEach(c => {
-            const tr = document.createElement('tr');
-            
-            let badge = '';
-            if (c.alerta === 'OK') badge = '<span style="color:#10b981;">🟢 OK</span>';
-            else if (c.alerta === 'No Contado') badge = '<span style="color:#f59e0b;">🟠 No Contado</span>';
-            else if (c.alerta === 'Stock Negativo') badge = '<span style="color:#ef4444;">🔴 Negativo</span>';
-            else if (c.alerta === 'Consumo Elevado') badge = '<span style="color:#ef4444;">🔴 Elevado</span>';
-            
-            tr.innerHTML = `
-                <td>${badge}</td>
-                <td style="font-weight:bold;">${c.producto}</td>
-                <td><span style="font-size:0.75rem; color:var(--primary-color);">${c.categoria}</span></td>
-                <td style="text-align:center;">${c.stock_anterior}</td>
-                <td style="text-align:center;">${c.stock_actual}</td>
-                <td style="text-align:center; font-weight:bold;">${c.consumo}</td>
-                <td style="text-align:right;">${c.coste_consumo.toFixed(2)} €</td>
-            `;
-            tbody.appendChild(tr);
-            
+            if(!categorias[c.categoria]) categorias[c.categoria] = [];
+            categorias[c.categoria].push(c);
             costeTotal += c.coste_consumo;
         });
         
         document.getElementById('balance-total-cost').textContent = costeTotal.toFixed(2) + ' €';
         
+        for (const cat in categorias) {
+            const acc = document.createElement('div');
+            acc.className = 'accordion';
+            
+            const header = document.createElement('div');
+            header.className = 'accordion-header';
+            header.innerHTML = `<span>${cat}</span> <span style="font-size:0.8rem; opacity:0.8;">${categorias[cat].length} ítems ▾</span>`;
+            
+            const content = document.createElement('div');
+            content.className = 'accordion-content';
+            
+            categorias[cat].forEach(c => {
+                const card = document.createElement('div');
+                card.className = 'history-card';
+                card.dataset.prod = c.producto.toLowerCase();
+                
+                let badge = '';
+                if (c.alerta === 'OK') badge = '<span style="color:#10b981;">🟢 OK</span>';
+                else if (c.alerta === 'No Contado') badge = '<span style="color:#f59e0b;">🟠 No Contado</span>';
+                else if (c.alerta === 'Stock Negativo') badge = '<span style="color:#ef4444;">🔴 Negativo</span>';
+                else if (c.alerta === 'Consumo Elevado') badge = '<span style="color:#ef4444;">🔴 Elevado</span>';
+                
+                // Rediseñar la tarjeta para Balance (6 columnas de información, grid-column-span...)
+                // grid-template-columns en CSS es 2fr 1fr 1fr, pero para balance ocuparemos todo con flex o grid propio
+                card.style.display = 'flex';
+                card.style.flexDirection = 'column';
+                card.style.alignItems = 'stretch';
+                
+                card.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <span class="prod-name">${c.producto}</span>
+                        ${badge}
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#bbb;">
+                        <span>Ant: <strong>${c.stock_anterior}</strong></span>
+                        <span>Act: <strong>${c.stock_actual}</strong></span>
+                        <span>Cons: <strong style="color:white;">${c.consumo}</strong></span>
+                        <span style="color:var(--primary-color);"><strong>${c.coste_consumo.toFixed(2)} €</strong></span>
+                    </div>
+                `;
+                content.appendChild(card);
+            });
+            
+            header.onclick = () => {
+                content.classList.toggle('open');
+                const isOp = content.classList.contains('open');
+                header.querySelector('span:last-child').innerText = `${categorias[cat].length} ítems ${isOp ? '▴' : '▾'}`;
+            };
+            
+            acc.appendChild(header);
+            acc.appendChild(content);
+            container.appendChild(acc);
+        }
     } catch(e) { console.error("Error cargando comparativa", e); }
 }
 
