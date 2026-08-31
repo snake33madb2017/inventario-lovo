@@ -87,6 +87,12 @@ class NuevaReceta(BaseModel):
     coste: str
     categoria: str
 
+class AjusteBalance(BaseModel):
+    producto: str
+    stock_anterior: float
+    stock_actual: float
+    precio: float
+
 last_registro_time = 0.0
 last_registro_payload = ""
 
@@ -571,6 +577,61 @@ def borrar_todo_inventario(user: dict = Depends(check_is_admin)):
         conn.commit()
         conn.close()
         return {"status": "success", "message": f"Cierre guardado para el {fecha_hoy} y stock de referencia actualizado."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/balance/ajuste")
+def ajustar_balance(ajuste: AjusteBalance, user: dict = Depends(check_is_admin)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # 1. Update stock_referencia (Stock Anterior & Precio)
+        cursor.execute('SELECT id FROM stock_referencia WHERE producto = ?', (ajuste.producto,))
+        if cursor.fetchone():
+            cursor.execute('UPDATE stock_referencia SET stock_anterior = ?, precio_unitario = ? WHERE producto = ?', 
+                          (ajuste.stock_anterior, ajuste.precio, ajuste.producto))
+        else:
+            # If not in reference, add it
+            cursor.execute('SELECT categoria FROM diccionario_productos WHERE nombre = ?', (ajuste.producto,))
+            cat_row = cursor.fetchone()
+            cat = cat_row['categoria'] if cat_row else 'Sin Categoría'
+            cursor.execute('INSERT INTO stock_referencia (producto, categoria, stock_anterior, precio_unitario) VALUES (?, ?, ?, ?)',
+                          (ajuste.producto, cat, ajuste.stock_anterior, ajuste.precio))
+                          
+        # 2. Update diccionario_productos (Precio)
+        cursor.execute('UPDATE diccionario_productos SET precio_unitario = ? WHERE nombre = ?',
+                      (ajuste.precio, ajuste.producto))
+                      
+        # 3. Update registros for Stock Actual
+        # Delete today's entries for this product
+        now = datetime.now()
+        fecha_hoy = now.strftime("%d/%m/%Y")
+        hora = now.strftime("%H:%M:%S")
+        
+        cursor.execute('DELETE FROM registros WHERE fecha = ? AND producto = ?', (fecha_hoy, ajuste.producto))
+        
+        # Insert a new clean entry with the exact adjusted stock
+        if ajuste.stock_actual > 0 or True:
+            # We insert it even if 0, so the adjustment is recorded
+            cat_row = cursor.execute('SELECT categoria FROM diccionario_productos WHERE nombre = ?', (ajuste.producto,)).fetchone()
+            cat = cat_row['categoria'] if cat_row else 'Sin Categoría'
+            
+            # Since botellas_llenas is int and restante is string, we'll store everything in botellas_llenas as float for the adjustment
+            # Or split it:
+            enteras = int(ajuste.stock_actual)
+            decimal = int(round((ajuste.stock_actual - enteras) * 100))
+            decimal_str = f"{decimal}%" if decimal > 0 else "-"
+            
+            cursor.execute('''
+                INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (fecha_hoy, hora, cat, ajuste.producto, ajuste.stock_actual, enteras, decimal_str, "Ajuste Manual"))
+            
+        conn.commit()
+        conn.close()
+        
+        return {"status": "success", "message": "Ajuste manual aplicado correctamente"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

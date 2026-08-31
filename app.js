@@ -1170,7 +1170,10 @@ async function loadBalancePorFecha(fecha) {
                 
                 card.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                        <span class="prod-name">${c.producto}</span>
+                        <span class="prod-name">
+                            ${c.producto}
+                            ${userRol === 'encargado' ? `<span style="cursor:pointer; margin-left:5px;" onclick="abrirAjusteManual('${c.producto.replace(/'/g, "\\'")}', ${c.stock_anterior}, ${c.stock_actual}, ${c.precio_unitario || 0})">✏️</span>` : ''}
+                        </span>
                         ${badge}
                     </div>
                     <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:#bbb;">
@@ -1359,4 +1362,51 @@ document.addEventListener('mousemove', (e) => {
   const x = (e.clientX / window.innerWidth - 0.5) * 20;
   const y = (e.clientY / window.innerHeight - 0.5) * 20;
   bokehContainer.style.transform = `translate(${x}px, ${y}px)`;
+});
+
+// Modal Ajuste Manual
+function abrirAjusteManual(producto, stockAnt, stockAct, precio) {
+    document.getElementById('ajuste-producto-nombre').value = producto;
+    document.getElementById('ajuste-producto-title').textContent = `Ajustar: ${producto}`;
+    document.getElementById('ajuste-stock-ant').value = stockAnt;
+    document.getElementById('ajuste-stock-act').value = stockAct;
+    document.getElementById('ajuste-precio').value = precio;
+    document.getElementById('modal-ajuste-manual').classList.remove('hidden');
+}
+
+document.getElementById('form-ajuste-manual').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const producto = document.getElementById('ajuste-producto-nombre').value;
+    const stockAnt = parseFloat(document.getElementById('ajuste-stock-ant').value);
+    const stockAct = parseFloat(document.getElementById('ajuste-stock-act').value);
+    const precio = parseFloat(document.getElementById('ajuste-precio').value);
+    
+    try {
+        const res = await fetch(`${SERVER_URL}/api/balance/ajuste`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                producto: producto,
+                stock_anterior: stockAnt,
+                stock_actual: stockAct,
+                precio: precio
+            })
+        });
+        
+        if (res.ok) {
+            document.getElementById('modal-ajuste-manual').classList.add('hidden');
+            showToast("Ajuste guardado correctamente");
+            
+            // Reload the balance view
+            const selectBal = document.getElementById('balance-date-select');
+            if (selectBal && selectBal.value) {
+                loadBalancePorFecha(selectBal.value);
+            }
+        } else {
+            const err = await res.json();
+            alert("Error al guardar el ajuste: " + (err.detail || ''));
+        }
+    } catch(err) {
+        alert("Error de conexión");
+    }
 });
