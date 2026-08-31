@@ -181,7 +181,22 @@ def init_db():
     conn.commit()
     load_stock_referencia(conn)
     inicializar_stock_julio(conn)
+    sincronizar_categorias(conn)
     conn.close()
+
+def sincronizar_categorias(conn):
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT categoria FROM registros WHERE categoria IS NOT NULL AND categoria != ''")
+        categorias_usadas = cursor.fetchall()
+        for row in categorias_usadas:
+            cat = row[0].strip()
+            cursor.execute("SELECT COUNT(*) FROM categorias WHERE nombre = ?", (cat,))
+            if cursor.fetchone()[0] == 0:
+                cursor.execute("INSERT INTO categorias (nombre) VALUES (?)", (cat,))
+        conn.commit()
+    except Exception as e:
+        print("Error sincronizando categorias:", e)
 
 def inicializar_stock_julio(conn):
     cursor = conn.cursor()
@@ -577,6 +592,23 @@ def obtener_historial_fecha(fecha: str, user: dict = Depends(check_is_admin)):
         conn.close()
         registros = [dict(row) for row in rows]
         return {"registros": registros}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/inventario/historial")
+def borrar_fecha_historial(fecha: str, user: dict = Depends(check_is_admin)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM registros WHERE fecha = ?', (fecha,))
+        deleted = cursor.rowcount
+        conn.commit()
+        conn.close()
+        if deleted == 0:
+            raise HTTPException(status_code=404, detail=f"No se encontraron registros para la fecha {fecha}")
+        return {"status": "success", "message": f"Se eliminaron {deleted} registros de la fecha {fecha}"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
