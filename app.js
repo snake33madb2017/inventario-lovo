@@ -912,6 +912,49 @@ function setupAdminTabs() {
             });
         });
     }
+    
+    const formImportarExcel = document.getElementById('form-importar-excel');
+    if (formImportarExcel) {
+        formImportarExcel.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const dateInput = document.getElementById('import-excel-date').value;
+            const fileInput = document.getElementById('import-excel-file').files[0];
+            
+            if(!dateInput || !fileInput) return alert('Por favor, rellena fecha y selecciona un archivo.');
+            
+            const formData = new FormData();
+            formData.append('fecha', dateInput);
+            formData.append('file', fileInput);
+            
+            const btn = e.target.querySelector('button');
+            const originalText = btn.textContent;
+            btn.textContent = 'Subiendo...';
+            btn.disabled = true;
+            
+            try {
+                const res = await fetch(`${SERVER_URL}/api/inventario/importar-excel`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${localStorage.getItem('usuario_lovo_token')}` },
+                    body: formData
+                });
+                
+                const data = await res.json();
+                if(res.ok) {
+                    showToast('Excel subido y guardado exitosamente');
+                    e.target.reset();
+                    loadHistorialFechas();
+                } else {
+                    alert(data.detail || 'Error subiendo Excel');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Error de conexión');
+            } finally {
+                btn.textContent = originalText;
+                btn.disabled = false;
+            }
+        });
+    }
 }
 
 function loadAdminData() {

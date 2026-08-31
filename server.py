@@ -15,7 +15,7 @@ import ssl
 from email.message import EmailMessage
 import jwt
 from datetime import timedelta
-from fastapi import Depends
+from fastapi import Depends, UploadFile, File, Form
 from typing import Optional
 
 app = FastAPI(title="Inventario Bar API")
@@ -402,6 +402,118 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         return FileResponse(path=temp_file, filename=temp_file, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/inventario/importar-excel")
+async def importar_excel_inventario(fecha: str = Form(...), file: UploadFile = File(...), user: dict = Depends(check_is_admin)):
+    try:
+        contents = await file.read()
+        import io
+        import math
+        import pandas as pd
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("SELECT alias, real_name FROM diccionario")
+        dic_rows = cursor.fetchall()
+        diccionario = {row['alias'].lower(): row['real_name'] for row in dic_rows}
+
+        def normalizar_producto(nombre_raw):
+            if not isinstance(nombre_raw, str): return ""
+            clean = nombre_raw.strip().lower()
+            return diccionario.get(clean, nombre_raw.strip())
+            
+        dfs = pd.read_excel(io.BytesIO(contents), sheet_name=None)
+        
+        nuevos_registros = []
+        hojas_detectadas = []
+        
+        if 'Stock lovo' in dfs:
+            hojas_detectadas.append('Stock lovo')
+            df = dfs['Stock lovo']
+            df.columns = df.columns.astype(str).str.strip().str.lower()
+            if 'articulos' in df.columns and 'botellas llenas' in df.columns:
+                for _, row in df.iterrows():
+                    prod = row['articulos']
+                    if pd.isna(prod): continue
+                    producto_real = normalizar_producto(str(prod))
+                    llenas = row['botellas llenas']
+                    try:
+                        llenas_val = int(llenas) if pd.notna(llenas) else 0
+                    except:
+                        llenas_val = 0
+                    restante = row.get('botella empezada (%)', row.get('botella empezada'))
+                    try:
+                        restante_val = float(restante) * 100 if isinstance(restante, float) and pd.notna(restante) else (float(restante) if pd.notna(restante) else 0.0)
+                        if math.isnan(restante_val): restante_val = 0.0
+                    except:
+                        restante_val = 0.0
+                    
+                    nuevos_registros.append((
+                        fecha, "00:00", "Spirits / Licores", producto_real, 
+                        f"Llenas: {llenas_val}, Restante: {restante_val}%", 
+                        llenas_val, float(restante_val), user.get("nombre", "Sistema")
+                    ))
+        
+        if 'Cristaleria' in dfs:
+            hojas_detectadas.append('Cristaleria')
+            df = dfs['Cristaleria']
+            df.columns = df.columns.astype(str).str.strip().str.lower()
+            col_prod = 'articulos' if 'articulos' in df.columns else ('cristaleria' if 'cristaleria' in df.columns else None)
+            
+            if col_prod and 'unidades' in df.columns:
+                for _, row in df.iterrows():
+                    prod = row[col_prod]
+                    if pd.isna(prod): continue
+                    producto_real = normalizar_producto(str(prod))
+                    unidades = row['unidades']
+                    try:
+                        llenas_val = int(unidades) if pd.notna(unidades) else 0
+                    except:
+                        llenas_val = 0
+                    
+                    nuevos_registros.append((
+                        fecha, "00:00", "Cristaleria / Vinos", producto_real, 
+                        f"Unidades: {llenas_val}", 
+                        llenas_val, 0.0, user.get("nombre", "Sistema")
+                    ))
+                    
+        if 'Stock producciones' in dfs:
+            hojas_detectadas.append('Stock producciones')
+            df = dfs['Stock producciones']
+            df.columns = df.columns.astype(str).str.strip().str.lower()
+            col_prod = 'articulos' if 'articulos' in df.columns else ('producciones' if 'producciones' in df.columns else None)
+            
+            if col_prod and 'unidades' in df.columns:
+                for _, row in df.iterrows():
+                    prod = row[col_prod]
+                    if pd.isna(prod): continue
+                    producto_real = normalizar_producto(str(prod))
+                    unidades = row['unidades']
+                    try:
+                        llenas_val = int(unidades) if pd.notna(unidades) else 0
+                    except:
+                        llenas_val = 0
+                    
+                    nuevos_registros.append((
+                        fecha, "00:00", "Producciones / Batch", producto_real, 
+                        f"Unidades: {llenas_val}", 
+                        llenas_val, 0.0, user.get("nombre", "Sistema")
+                    ))
+                    
+        if nuevos_registros:
+            cursor.executemany('''
+                INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', nuevos_registros)
+            conn.commit()
+            conn.close()
+            return {"message": f"Excel importado. Hojas procesadas: {', '.join(hojas_detectadas)}. {len(nuevos_registros)} registros guardados."}
+        else:
+            conn.close()
+            raise HTTPException(status_code=400, detail="No se encontraron datos compatibles en el Excel.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error importando Excel: {str(e)}")
 
 @app.post("/api/admin/enviar-excel")
 def enviar_excel_correo(user: dict = Depends(check_is_admin)):
