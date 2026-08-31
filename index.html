@@ -92,25 +92,27 @@
                         <div class="bar-counter"></div>
                     </div>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button id="laboratorio-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #10b981; border-color: #10b981;">
-                        🧪 Laboratorio
-                    </button>
-                    <button id="admin-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #3b82f6; border-color: #3b82f6;">
-                        ⚙️ Admin
-                    </button>
-                    <button id="logout-btn" class="undo-btn" style="font-size: 0.75rem; padding: 4px 8px;">
-                        Salir
-                    </button>
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                    <div style="display: flex; gap: 8px;">
+                        <button id="laboratorio-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #10b981; border-color: #10b981;">
+                            🧪 Producción
+                        </button>
+                        <button id="admin-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #3b82f6; border-color: #3b82f6;">
+                            ⚙️ Admin
+                        </button>
+                        <button id="logout-btn" class="undo-btn" style="font-size: 0.75rem; padding: 4px 8px;">
+                            Salir
+                        </button>
+                    </div>
+                    <div id="user-display" style="font-size: 0.75rem; color: var(--text-muted);">
+                        Usuario
+                    </div>
                 </div>
             </div>
             <div style="display: flex; flex-direction: column; align-items: flex-end;">
                 <div id="status-indicator" class="status-indicator offline">
                     <span class="dot"></span>
                     <span class="text">Desconectado</span>
-                </div>
-                <div id="user-display" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
-                    Usuario
                 </div>
             </div>
         </header>
@@ -306,7 +308,7 @@
     <div id="laboratorio-view" class="view hidden admin-container">
         <header>
             <div class="header-left">
-                <h2>🧪 Laboratorio & Recetas</h2>
+                <h2>🧪 Producción & Recetas</h2>
             </div>
             <button id="close-laboratorio-btn" class="undo-btn" style="color: white;">Cerrar Panel</button>
         </header>
