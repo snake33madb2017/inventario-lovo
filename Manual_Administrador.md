@@ -1,80 +1,67 @@
-# Manual de Uso para el Administrador (Encargado) - Inventario Lovo
+# Manual del Encargado (Por Marco Daza) 🍸
 
-Bienvenido al manual de uso de la aplicación web progresiva (PWA) de **Inventario Lovo**. Este documento detalla todas las funciones exclusivas para tu rol de `encargado`, diseñadas para facilitarte el control del inventario y la gestión de tu equipo.
+¡Hola! Como sabes, he estado trabajando duro en esta aplicación para que hacer el inventario deje de ser una tortura y podamos tener un control total del negocio desde el móvil. Como encargado, tú tienes las llaves del coche. Mientras que los camareros solo se dedican a contar botellas, tú tienes acceso a los paneles de gestión, cuadre y análisis. 
 
----
-
-## 1. Acceso a la Aplicación
-
-Para utilizar las funciones de administrador, debes iniciar sesión con tus credenciales.
-1. Abre la aplicación en tu navegador o desde el icono en la pantalla de inicio de tu móvil.
-2. En la pantalla de **Login**, introduce tu **DNI** y tu **Contraseña**.
-3. Si tus credenciales tienen el rol de `encargado`, la aplicación te dará la bienvenida y mostrará los controles avanzados de administración.
-
-> [!NOTE]
-> El DNI debe ingresarse exactamente como se registró (incluyendo la letra, si aplica).
+Aquí te dejo detallado todo lo que puedes hacer con la app.
 
 ---
 
-## 2. Gestión Diaria del Inventario
+## 1. El Acceso
+Para entrar, simplemente usa el enlace que te pasé o abre la app si ya la instalaste en tu móvil.
+- En la pantalla de **Login**, pon tu **DNI** (con letra incluida) y la **Contraseña** que te he asignado.
+- Como tu cuenta tiene el súper-rol de `encargado`, la app te abrirá todas las funciones especiales en la barra superior.
 
-Al igual que los camareros, puedes registrar el inventario usando la voz o manualmente, pero tú tienes opciones adicionales para el control de los datos.
+---
 
-### 2.1. Dictado por Voz y Registro Manual
-- **Por Voz:** Toca el botón rojo del micrófono y dicta la cantidad seguida del producto (ej: *"Tres Brugal"*). La aplicación lo reconocerá y lo guardará automáticamente en la categoría correspondiente.
-- **Manual:** Si hay mucho ruido, pulsa el botón del teclado (⌨️) e introduce el texto de la misma manera.
-- **Deshacer:** Si te equivocas, puedes pulsar el botón **Deshacer (⟲)**. Como encargado, al deshacer **borrarás el último registro de toda la base de datos**, independientemente de quién lo haya introducido (los camareros solo pueden borrar sus propios registros).
+## 2. Gestión Diaria y Cierres (La Magia)
+Puedes hacer inventario igual que el resto (usando la voz o el teclado manual), pero tú eres el responsable de que los números cuadren al final.
 
-### 2.2. Descargar Reporte (Excel)
-En la parte superior de la pantalla principal verás un botón verde con el icono de un documento (⬇️ Excel).
-- Al pulsarlo, descargarás automáticamente un archivo Excel (`Inventario_Hoy.xlsx`) con todo el inventario registrado en el día actual, organizado en pestañas por categorías.
+### 2.1. Deshacer errores de cualquiera
+Si ves que alguien la ha liado contando o te das cuenta de un error grave, usa el botón **Deshacer (⟲)**. Ojo con esto: a diferencia de los camareros (que solo pueden borrar lo suyo), si tú pulsas ese botón, **borrarás el último registro de toda la base de datos**, lo haya metido quien lo haya metido. Úsalo con cuidado.
 
-### 2.3. Borrar Inventario Mensual (Cierre)
-Junto al botón de Excel, tienes un botón rojo de advertencia (🗑️ Mes).
-- **¿Para qué sirve?** Al final de tu periodo de inventario (por ejemplo, a final de mes o de semana), una vez hayas descargado y guardado tu Excel de forma segura, puedes pulsar este botón para **borrar toda la base de datos** y empezar un nuevo inventario desde cero.
+### 2.2. Descargar el Excel
+En la pantalla principal tienes el botón amarillo (⬇️ Excel).
+- Púlsalo siempre que quieras sacar un "pantallazo" de cómo va el inventario. Te descargará un archivo Excel perfecto (`Inventario_Hoy.xlsx`) con todo cuadradito por categorías. Haz esto siempre antes de cerrar el mes.
+
+### 2.3. Cierre de Mes (El Botón Rojo de Peligro)
+Al lado del Excel, hay un botón rojo (🗑️ Mes).
+- **Esto es solo para el final del ciclo.** Cuando hayamos cerrado el mes y tengamos el Excel descargado a buen recaudo, pulsas este botón. Lo que hace es archivar el conteo actual en el historial y **reiniciar la base de datos** para empezar a contar de cero el mes que viene.
 
 > [!CAUTION]
-> **Peligro:** Esta acción borra TODOS los registros actuales. Asegúrate siempre de haber descargado el reporte en Excel antes de pulsarlo. El sistema te pedirá confirmación antes de proceder.
+> **¡Peligro!** Nunca pulses el botón rojo de Cierre de Mes sin haber descargado y guardado el Excel primero. Si lo haces, perderemos los datos de lo que se ha contado hoy.
 
 ---
 
-## 3. Panel de Configuración Avanzada
+## 3. El Panel de Control (⚙️ Admin)
+En la parte superior verás un botón azul que dice "⚙️ Admin". Ahí está la sala de máquinas de la aplicación. Tiene varias pestañas:
 
-Como encargado, verás un botón gris con un icono de tuerca (⚙️) en la pantalla principal. Este botón te da acceso al **Panel de Configuración**, desde donde puedes gestionar cómo funciona la aplicación.
+### Pestaña Usuarios
+Desde aquí controlamos quién entra a la app.
+- **Crear cuentas:** Pon su DNI, Nombre, Contraseña y decide si es `camarero` o `encargado`.
+- **Despedir/Borrar:** Si alguien ya no trabaja con nosotros, búscalo en la lista y dale a Borrar. Se le cortará el acceso de inmediato.
 
-El panel está dividido en tres pestañas:
+### Pestaña Categorías
+- Si metemos una nueva familia de alcohol (por ejemplo, "Mezcales"), añádela aquí.
+- Aparecerá automáticamente en el desplegable de la pantalla principal para poder filtrar y contar.
 
-### 3.1. Pestaña: Usuarios
-Aquí puedes ver todos los empleados que tienen acceso a la app.
-- **Crear un nuevo usuario:**
-  - Introduce su DNI, Nombre, Contraseña y selecciona su Rol (`camarero` o `encargado`).
-  - Pulsa **Crear**.
-- **Borrar usuario:**
-  - Busca al usuario en la lista inferior y pulsa el botón **Borrar**. Ese usuario perderá el acceso inmediatamente.
-
-### 3.2. Pestaña: Categorías
-El inventario se organiza en categorías (Cristalería, Licores, Refrescos, etc.).
-- **Añadir categoría:** Escribe el nombre de la nueva categoría y pulsa **Crear**. La categoría aparecerá inmediatamente en el menú desplegable de la pantalla principal.
-- **Borrar categoría:** Busca la categoría en la lista y pulsa **Borrar**. 
-
-> [!WARNING]
-> No borres una categoría si aún hay productos de esa categoría en el inventario actual que no has exportado, para evitar desorganización en los datos.
-
-### 3.3. Pestaña: Diccionario (Autocorrección)
-El diccionario es la "inteligencia" de la app. Sirve para corregir automáticamente lo que el asistente de voz escucha mal.
-- **¿Cómo funciona?** Si cuando dictas *"Coca-Cola"*, el móvil suele entender *"cocacola"*, puedes crear una regla.
-- **Alias (lo que escucha la app):** Escribe cómo suele equivocarse la aplicación, por ejemplo: `cocacola`. (Siempre en minúsculas y sin tildes).
-- **Nombre Real (lo que se guardará):** Escribe cómo quieres que aparezca en el Excel, por ejemplo: `Coca-Cola`.
-- Al pulsar **Crear**, a partir de ese momento, cualquier camarero que dicte algo que contenga el "alias", será corregido automáticamente al "Nombre Real".
+### Pestaña Diccionario (Autocorrección)
+Este es el cerebro del micrófono. Si ves que el micrófono se vuelve loco con alguna botella rara, aquí le enseñamos a hablar.
+- **Alias (Lo que escucha el móvil):** Escribe el error habitual, todo en minúsculas y sin tildes (ej: `yaguer`).
+- **Nombre Real (Lo que queremos):** Escribe cómo se llama de verdad (ej: `Jägermeister`).
+- Cuando le des a guardar, la próxima vez que el móvil escuche "yaguer", lo cambiará mágicamente por el nombre real antes de guardarlo en la base de datos.
 
 ---
 
-## 4. Solución de Problemas Comunes
+## 4. Las Novedades (Analítica y Compras)
+He metido unas pestañas nuevas para que no tengas ni que abrir el Excel en el ordenador:
 
-- **El botón del micrófono no funciona:** Asegúrate de que el navegador tiene permisos para usar el micrófono. Si estás en un iPhone/Safari, debes pulsar la pantalla antes de que el audio se desbloquee.
-- **No se guardan los registros:** Comprueba el indicador de estado en la parte superior derecha. Si dice "Desconectado" en rojo, significa que el móvil no tiene conexión a internet o el servidor está apagado.
-- **El servidor está encendido pero sigo Desconectado:** Ve a la pantalla de Login y pulsa el botón de configuración (⚙️) abajo a la derecha. Escribe la dirección IP correcta del servidor (Ej: `http://192.168.1.50:8000`).
+- **Balance:** Aquí puedes comparar el mes anterior con este. Y lo mejor: si hay algún descuadre o una botella rota, verás un lapicito (✏️) al lado de cada producto. Lo pulsas, modificas los números a mano, y el sistema cuadrará los gastos automáticamente firmando como "Ajuste Manual".
+- **Compras:** Busca los productos y ponles un "Stock Ideal" (ej: quiero que siempre haya 10 botellas de Beefeater). Luego pulsa "Generar Lista de Compra" y la app te hará el cálculo matemático y te dará un texto listo para que lo pegues en el WhatsApp del proveedor con lo que nos falta.
+- **Analítica:** Métete aquí para ver unos gráficos chulísimos de cuánto dinero nos hemos gastado por categorías y el Top 5 de las botellas que más se beben en el bar.
 
 ---
-*Manual generado para Inventario Lovo. Versión 1.0.*
-**Por : MDev - Soluciones Tecnológicas (Marco Daza)**
+
+Cualquier cosa que falle, dímelo y lo corrijo. ¡A darle duro!
+
+**Marco Daza**
+*MDev - Soluciones Tecnológicas*
