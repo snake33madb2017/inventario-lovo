@@ -868,6 +868,140 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             ws4 = wb.create_sheet(title="Stock producciones")
             write_category_data(ws4, data_producciones, ["Producto", "TOTAL"])
 
+        # 5. Balance y KPIs
+        from openpyxl.chart import PieChart, BarChart, Reference
+        
+        ws5 = wb.create_sheet(title="Balance y KPIs")
+        
+        # Calculate aggregations
+        cat_agg = {}
+        total_stock_value = 0.0
+        total_consumption_value = 0.0
+        total_stock_ant_value = 0.0
+        
+        for p, s_act, precio, coste_total in comparativa:
+            total_stock_value += (s_act * precio)
+            total_consumption_value += coste_total
+            
+            s_ant = stock_ref[p]['stock_anterior'] if p in stock_ref else 0.0
+            total_stock_ant_value += (s_ant * precio)
+            
+            cat = stock_ref[p]['categoria'] if p in stock_ref else 'Sin Categoría'
+            if cat not in cat_agg:
+                cat_agg[cat] = {'stock_ant': 0.0, 'stock_act': 0.0, 'cons_neto': 0.0}
+            
+            cat_agg[cat]['stock_ant'] += (s_ant * precio)
+            cat_agg[cat]['stock_act'] += (s_act * precio)
+            cat_agg[cat]['cons_neto'] += coste_total
+
+        merma_promedio = (total_consumption_value / total_stock_ant_value) if total_stock_ant_value > 0 else 0.0
+        cobertura = (total_stock_value / total_consumption_value) if total_consumption_value > 0 else 0.0
+
+        # Title
+        ws5.merge_cells("A1:D1")
+        cell = ws5["A1"]
+        cell.value = "BALANCE GLOBAL Y KPIs"
+        cell.font = Font(size=14, bold=True, color="D3A548")
+        cell.fill = PatternFill(start_color="1C2639", end_color="1C2639", fill_type="solid")
+        cell.alignment = align_center
+
+        # KPIs
+        kpis = [
+            ("Valor Stock Actual", total_stock_value, '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'),
+            ("Consumo Total", total_consumption_value, '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'),
+            ("Merma Promedio", merma_promedio, '0.00%'),
+            ("Cobertura (Meses)", cobertura, '0.00')
+        ]
+        
+        for i, (kpi_name, kpi_val, kpi_fmt) in enumerate(kpis):
+            header_cell = ws5.cell(row=3, column=i+1)
+            header_cell.value = kpi_name
+            header_cell.font = font_header
+            header_cell.fill = fill_header
+            header_cell.border = thin_border
+            header_cell.alignment = align_center
+            
+            val_cell = ws5.cell(row=4, column=i+1)
+            val_cell.value = kpi_val
+            val_cell.font = font_data
+            val_cell.fill = fill_data
+            val_cell.border = thin_border
+            val_cell.alignment = align_center
+            val_cell.number_format = kpi_fmt
+
+        # Agregación por Categoría Table
+        ws5.cell(row=6, column=1).value = "Agregación por Categoría"
+        ws5.cell(row=6, column=1).font = Font(bold=True)
+        
+        headers_agg = ["Categoría", "Stock Inicial (€)", "Stock Final (€)", "Consumo Neto (€)", "% Total Consumo"]
+        for i, h in enumerate(headers_agg):
+            cell = ws5.cell(row=7, column=i+1)
+            cell.value = h
+            cell.fill = fill_header
+            cell.font = font_header
+            cell.border = thin_border
+            cell.alignment = align_center
+            
+        row_idx = 8
+        cat_list = sorted(cat_agg.keys())
+        for cat in cat_list:
+            c_data = cat_agg[cat]
+            perc = (c_data['cons_neto'] / total_consumption_value) if total_consumption_value > 0 else 0.0
+            
+            ws5.cell(row=row_idx, column=1).value = cat
+            ws5.cell(row=row_idx, column=2).value = c_data['stock_ant']
+            ws5.cell(row=row_idx, column=3).value = c_data['stock_act']
+            ws5.cell(row=row_idx, column=4).value = c_data['cons_neto']
+            ws5.cell(row=row_idx, column=5).value = perc
+            
+            for col in range(1, 6):
+                c = ws5.cell(row=row_idx, column=col)
+                c.fill = fill_data
+                c.font = font_data
+                c.border = thin_border
+                
+            ws5.cell(row=row_idx, column=2).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
+            ws5.cell(row=row_idx, column=3).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
+            ws5.cell(row=row_idx, column=4).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
+            ws5.cell(row=row_idx, column=5).number_format = '0.00%'
+            row_idx += 1
+            
+        format_sheet(ws5)
+        
+        # Charts
+        if cat_list:
+            # Pie Chart
+            pie = PieChart()
+            labels = Reference(ws5, min_col=1, min_row=8, max_row=row_idx-1)
+            data = Reference(ws5, min_col=4, min_row=7, max_row=row_idx-1)
+            pie.add_data(data, titles_from_data=True)
+            pie.set_categories(labels)
+            pie.title = "Distribución del Consumo Neto"
+            
+            # Pie labels styling (showing percentages)
+            from openpyxl.chart.label import DataLabelList
+            pie.dataLabels = DataLabelList()
+            pie.dataLabels.showPercent = True
+            
+            ws5.add_chart(pie, "A" + str(row_idx + 2))
+            
+            # Bar Chart
+            bar = BarChart()
+            bar.type = "col"
+            bar.style = 10
+            bar.title = "Comparativa Stock Inicial vs Final"
+            bar.y_axis.title = "Euros (€)"
+            bar.x_axis.title = "Categorías"
+            
+            data_bar = Reference(ws5, min_col=2, max_col=3, min_row=7, max_row=row_idx-1)
+            cats_bar = Reference(ws5, min_col=1, min_row=8, max_row=row_idx-1)
+            
+            bar.add_data(data_bar, titles_from_data=True)
+            bar.set_categories(cats_bar)
+            bar.shape = 4
+            
+            ws5.add_chart(bar, "H7")
+
         if len(wb.sheetnames) == 0:
             ws = wb.create_sheet(title="Vacio")
             ws.append(["No hay registros hoy"])
