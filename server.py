@@ -98,6 +98,7 @@ last_registro_payload = ""
 
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE, timeout=10.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
     conn.row_factory = sqlite3.Row
     return conn
 
