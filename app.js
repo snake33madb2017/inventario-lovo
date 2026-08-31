@@ -1436,29 +1436,67 @@ function renderCatalogo(data) {
     if(!container) return;
     container.innerHTML = '';
     
+    // Group by category
+    const categorias = {};
     data.forEach(p => {
-        const item = document.createElement('div');
-        item.style.padding = '10px';
-        item.style.background = 'rgba(255,255,255,0.05)';
-        item.style.borderRadius = '8px';
-        item.style.display = 'flex';
-        item.style.justifyContent = 'space-between';
-        item.style.alignItems = 'center';
-        
-        item.innerHTML = `
-            <div>
-                <strong>${p.producto}</strong> <br>
-                <small style="color:var(--primary-color)">${p.categoria}</small>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <label style="font-size:0.8rem; color:#aaa;">Ideal:</label>
-                <input type="number" step="0.5" min="0" value="${p.stock_ideal}" 
-                       onchange="updateStockIdeal('${p.producto.replace(/'/g, "\\'")}', this.value)"
-                       style="width: 70px; padding: 5px; border-radius: 5px; background: rgba(0,0,0,0.5); border: 1px solid var(--primary-color); color: white; text-align: center;">
-            </div>
-        `;
-        container.appendChild(item);
+        if (!categorias[p.categoria]) categorias[p.categoria] = [];
+        categorias[p.categoria].push(p);
     });
+    
+    // Render
+    for (const cat in categorias) {
+        const catData = categorias[cat];
+        const itemsCount = catData.length;
+        
+        const catCard = document.createElement('div');
+        catCard.className = 'balance-category-card';
+        
+        const catHeader = document.createElement('div');
+        catHeader.className = 'balance-category-header';
+        catHeader.innerHTML = `
+            <span>${cat}</span>
+            <span style="font-size: 0.9rem; font-weight: normal; color: var(--primary-color);">${itemsCount} ítems <span class="arrow">▲</span></span>
+        `;
+        
+        const catContent = document.createElement('div');
+        catContent.className = 'balance-category-content';
+        
+        catHeader.onclick = () => {
+            catContent.classList.toggle('hidden');
+            const arrow = catHeader.querySelector('.arrow');
+            if(arrow) {
+                arrow.textContent = catContent.classList.contains('hidden') ? '▼' : '▲';
+            }
+        };
+        
+        catData.forEach(p => {
+            const item = document.createElement('div');
+            item.style.padding = '10px';
+            item.style.background = 'rgba(255,255,255,0.05)';
+            item.style.borderRadius = '8px';
+            item.style.marginBottom = '10px';
+            item.style.display = 'flex';
+            item.style.justifyContent = 'space-between';
+            item.style.alignItems = 'center';
+            
+            item.innerHTML = `
+                <div>
+                    <strong>${p.producto}</strong>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <label style="font-size:0.8rem; color:#aaa;">Ideal:</label>
+                    <input type="number" step="0.5" min="0" value="${p.stock_ideal}" 
+                           onchange="updateStockIdeal('${p.producto.replace(/'/g, "\\'")}', this.value)"
+                           style="width: 70px; padding: 5px; border-radius: 5px; background: rgba(0,0,0,0.5); border: 1px solid var(--primary-color); color: white; text-align: center;">
+                </div>
+            `;
+            catContent.appendChild(item);
+        });
+        
+        catCard.appendChild(catHeader);
+        catCard.appendChild(catContent);
+        container.appendChild(catCard);
+    }
 }
 
 async function updateStockIdeal(producto, value) {
