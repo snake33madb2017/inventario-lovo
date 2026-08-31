@@ -593,16 +593,11 @@ def ajustar_balance(ajuste: AjusteBalance, user: dict = Depends(check_is_admin))
                           (ajuste.stock_anterior, ajuste.precio, ajuste.producto))
         else:
             # If not in reference, add it
-            cursor.execute('SELECT categoria FROM diccionario_productos WHERE nombre = ?', (ajuste.producto,))
-            cat_row = cursor.fetchone()
-            cat = cat_row['categoria'] if cat_row else 'Sin Categoría'
+            # Category might be unknown if not in stock_referencia
+            cat = 'Sin Categoría'
             cursor.execute('INSERT INTO stock_referencia (producto, categoria, stock_anterior, precio_unitario) VALUES (?, ?, ?, ?)',
                           (ajuste.producto, cat, ajuste.stock_anterior, ajuste.precio))
                           
-        # 2. Update diccionario_productos (Precio)
-        cursor.execute('UPDATE diccionario_productos SET precio_unitario = ? WHERE nombre = ?',
-                      (ajuste.precio, ajuste.producto))
-                      
         # 3. Update registros for Stock Actual
         # Delete today's entries for this product
         now = datetime.now()
@@ -614,7 +609,7 @@ def ajustar_balance(ajuste: AjusteBalance, user: dict = Depends(check_is_admin))
         # Insert a new clean entry with the exact adjusted stock
         if ajuste.stock_actual > 0 or True:
             # We insert it even if 0, so the adjustment is recorded
-            cat_row = cursor.execute('SELECT categoria FROM diccionario_productos WHERE nombre = ?', (ajuste.producto,)).fetchone()
+            cat_row = cursor.execute('SELECT categoria FROM stock_referencia WHERE producto = ?', (ajuste.producto,)).fetchone()
             cat = cat_row['categoria'] if cat_row else 'Sin Categoría'
             
             # Since botellas_llenas is int and restante is string, we'll store everything in botellas_llenas as float for the adjustment
