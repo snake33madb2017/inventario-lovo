@@ -180,7 +180,100 @@ def init_db():
 
     conn.commit()
     load_stock_referencia(conn)
+    inicializar_stock_julio(conn)
     conn.close()
+
+def inicializar_stock_julio(conn):
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM registros WHERE fecha = '31/07/2026'")
+    if cursor.fetchone()[0] > 0:
+        return
+        
+    import os
+    if not os.path.exists("STOCK JULIO.xlsx"):
+        return
+        
+    try:
+        import pandas as pd
+        import math
+        
+        cursor.execute("SELECT alias, real_name FROM diccionario")
+        dic_rows = cursor.fetchall()
+        diccionario = {row['alias'].lower(): row['real_name'] for row in dic_rows}
+
+        def normalizar_producto(nombre_raw):
+            if not isinstance(nombre_raw, str): return ""
+            clean = nombre_raw.strip().lower()
+            return diccionario.get(clean, nombre_raw.strip())
+            
+        def clean_quantity(val):
+            if pd.isna(val) or val is None or str(val).strip() == "": return 0.0
+            val_str = str(val).strip().upper().replace("O", "0").replace(",", ".")
+            try: return max(0.0, float(val_str))
+            except: return 0.0
+            
+        def split_bottles_and_pct(cantidad):
+            botellas_llenas = int(math.floor(cantidad))
+            decimal_part = round(cantidad - botellas_llenas, 3)
+            pct_val = int(round(decimal_part * 100))
+            return botellas_llenas, f"{pct_val}%"
+            
+        dfs = pd.read_excel("STOCK JULIO.xlsx", sheet_name=None)
+        
+        records = []
+        
+        if 'Stock lovo' in dfs:
+            df = dfs['Stock lovo']
+            current_cat = "General"
+            for _, row in df.iterrows():
+                col_b = str(row.iloc[1]).strip() if len(row) > 1 and pd.notna(row.iloc[1]) else ""
+                col_c = row.iloc[2] if len(row) > 2 else None
+                col_d = row.iloc[3] if len(row) > 3 else None
+                
+                if not col_b or col_b.lower() == "producto": continue
+                
+                if col_b.isupper() and len(col_b) > 1 and pd.isna(col_c) and pd.isna(col_d):
+                    current_cat = col_b.title()
+                    continue
+                    
+                cleaned_prod = normalizar_producto(col_b)
+                qty = clean_quantity(col_c)
+                botellas, pct = split_bottles_and_pct(qty)
+                
+                records.append(("31/07/2026", "00:00:00", current_cat, cleaned_prod, qty, botellas, pct, "Cierre Julio"))
+                
+        if 'Cristaleria' in dfs:
+            df = dfs['Cristaleria']
+            item_cols = [c for c in df.columns if "VASOS" in str(c).upper() or "PRODUCTO" in str(c).upper()]
+            total_cols = [c for c in df.columns if "TOTAL" in str(c).upper()]
+            if item_cols and total_cols:
+                for _, row in df.iterrows():
+                    item = str(row[item_cols[0]]).strip() if pd.notna(row[item_cols[0]]) else ""
+                    if not item or item.lower() == "nan": continue
+                    qty = clean_quantity(row[total_cols[0]])
+                    botellas, pct = split_bottles_and_pct(qty)
+                    records.append(("31/07/2026", "00:00:00", "Cristalería", normalizar_producto(item), qty, botellas, pct, "Cierre Julio"))
+                    
+        if 'Stock producciones' in dfs:
+            df = dfs['Stock producciones']
+            for _, row in df.iterrows():
+                prod_b = str(row.iloc[1]).strip() if len(row) > 1 and pd.notna(row.iloc[1]) else ""
+                qty_b = clean_quantity(row.iloc[2]) if len(row) > 2 else 0.0
+                if prod_b and prod_b.lower() not in ["nan", "producto en botella", "producciones"]:
+                    botellas, pct = split_bottles_and_pct(qty_b)
+                    records.append(("31/07/2026", "00:00:00", "Producción Botellas", normalizar_producto(prod_b), qty_b, botellas, pct, "Cierre Julio"))
+                    
+                prod_g = str(row.iloc[4]).strip() if len(row) > 4 and pd.notna(row.iloc[4]) else ""
+                qty_g = clean_quantity(row.iloc[5]) if len(row) > 5 else 0.0
+                if prod_g and prod_g.lower() not in ["nan", "garrafas"]:
+                    botellas, pct = split_bottles_and_pct(qty_g)
+                    records.append(("31/07/2026", "00:00:00", "Producción Garrafas", normalizar_producto(prod_g), qty_g, botellas, pct, "Cierre Julio"))
+                    
+        if records:
+            cursor.executemany("INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", records)
+            conn.commit()
+    except Exception as e:
+        print("Error inicializando stock julio:", e)
 
 def load_stock_referencia(conn):
     cursor = conn.cursor()
