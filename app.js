@@ -865,12 +865,97 @@ function setupAdminTabs() {
         e.target.reset();
         loadAdminDiccionario();
     });
+    
+    const historyDateSelect = document.getElementById('history-date-select');
+    if (historyDateSelect) {
+        historyDateSelect.addEventListener('change', (e) => {
+            if(e.target.value) {
+                loadHistorialPorFecha(e.target.value);
+            } else {
+                document.getElementById('history-table-body').innerHTML = '';
+            }
+        });
+    }
+    
+    const downloadHistoryBtn = document.getElementById('download-history-btn');
+    if (downloadHistoryBtn) {
+        downloadHistoryBtn.addEventListener('click', async () => {
+            const fecha = document.getElementById('history-date-select').value;
+            if(!fecha) return alert("Selecciona una fecha primero");
+            try {
+                const response = await fetch(`${SERVER_URL}/api/descargar/hoy?fecha=${encodeURIComponent(fecha)}`, { headers: getAuthHeaders() });
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Inventario_${fecha.replace(/\//g, '-')}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                } else {
+                    alert('Error descargando Excel del historial');
+                }
+            } catch (e) { console.error(e); }
+        });
+    }
+    
+    const historySearchInput = document.getElementById('history-search-input');
+    if (historySearchInput) {
+        historySearchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#history-table-body tr');
+            rows.forEach(row => {
+                const prod = row.children[0].textContent.toLowerCase();
+                if(prod.includes(term)) row.style.display = '';
+                else row.style.display = 'none';
+            });
+        });
+    }
 }
 
 function loadAdminData() {
     loadAdminUsuarios();
     loadAdminCategorias();
     loadAdminDiccionario();
+    loadHistorialFechas();
+}
+
+async function loadHistorialFechas() {
+    try {
+        const res = await fetch(`${SERVER_URL}/api/inventario/fechas`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        const select = document.getElementById('history-date-select');
+        if (!select) return;
+        select.innerHTML = '<option value="">Selecciona fecha</option>';
+        data.fechas.forEach(f => {
+            const opt = document.createElement('option');
+            opt.value = f;
+            opt.textContent = f;
+            select.appendChild(opt);
+        });
+    } catch(e) { console.error("Error cargando fechas de historial", e); }
+}
+
+async function loadHistorialPorFecha(fecha) {
+    try {
+        const res = await fetch(`${SERVER_URL}/api/inventario/historial?fecha=${encodeURIComponent(fecha)}`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        const tbody = document.getElementById('history-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        data.registros.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.producto}</td>
+                <td><span style="font-size:0.75rem; color:var(--primary-color);">${r.categoria}</span></td>
+                <td style="font-weight:bold; text-align:center;">${r.botellas_llenas}</td>
+                <td style="text-align:center;">${r.restante_porcentaje}</td>
+                <td style="font-size:0.8rem; color:var(--text-muted);">${r.usuario}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    } catch(e) { console.error("Error cargando historial de fecha", e); }
 }
 
 async function loadAdminUsuarios() {

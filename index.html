@@ -188,6 +188,7 @@
                 <button class="tab-btn active" data-tab="tab-usuarios">Usuarios</button>
                 <button class="tab-btn" data-tab="tab-categorias">Categorías</button>
                 <button class="tab-btn" data-tab="tab-diccionario">Diccionario</button>
+                <button class="tab-btn" data-tab="tab-historial">Historial</button>
             </div>
 
             <div id="tab-usuarios" class="tab-content active">
@@ -224,6 +225,35 @@
                     <button type="submit">Añadir Regla</button>
                 </form>
                 <ul id="lista-diccionario" class="admin-list"></ul>
+            </div>
+
+            <div id="tab-historial" class="tab-content hidden">
+                <h3>Histórico de Cierres</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <select id="history-date-select" style="flex: 1; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <option value="">Selecciona fecha</option>
+                    </select>
+                    <button id="download-history-btn" class="download-btn">Descargar Excel</button>
+                </div>
+                <div class="search-container" style="margin-bottom: 15px;">
+                    <input type="text" id="history-search-input" placeholder="🔍 Buscar producto en esta fecha..." autocomplete="off">
+                </div>
+                <div class="table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Btls</th>
+                                <th>Rest.</th>
+                                <th>Usuario</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <!-- Filas inyectadas por JS -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </main>
         <footer style="text-align: center; color: #888; font-size: 0.8rem; margin-top: 30px; padding-bottom: 20px;">

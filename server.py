@@ -16,6 +16,7 @@ from email.message import EmailMessage
 import jwt
 from datetime import timedelta
 from fastapi import Depends
+from typing import Optional
 
 app = FastAPI(title="Inventario Bar API")
 
@@ -327,16 +328,47 @@ def obtener_productos_historicos(user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/descargar/hoy")
-def descargar_excel_hoy(user: dict = Depends(check_is_admin)):
+@app.get("/api/inventario/fechas")
+def obtener_fechas_historial(user: dict = Depends(check_is_admin)):
     try:
-        now = datetime.now()
-        fecha_hoy = now.strftime("%d/%m/%Y")
-        fecha_archivo = now.strftime("%Y-%m-%d")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT DISTINCT fecha FROM registros ORDER BY id DESC')
+        rows = cursor.fetchall()
+        conn.close()
+        fechas = [r["fecha"] for r in rows if r["fecha"]]
+        fechas_unicas = list(dict.fromkeys(fechas))
+        return {"fechas": fechas_unicas}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/inventario/historial")
+def obtener_historial_fecha(fecha: str, user: dict = Depends(check_is_admin)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY categoria ASC, producto ASC', (fecha,))
+        rows = cursor.fetchall()
+        conn.close()
+        registros = [dict(row) for row in rows]
+        return {"registros": registros}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/descargar/hoy")
+def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_is_admin)):
+    try:
+        if not fecha:
+            now = datetime.now()
+            fecha_busqueda = now.strftime("%d/%m/%Y")
+            fecha_archivo = now.strftime("%Y-%m-%d")
+        else:
+            fecha_busqueda = fecha
+            fecha_archivo = fecha.replace("/", "-")
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY categoria ASC, hora ASC', (fecha_hoy,))
+        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY categoria ASC, hora ASC', (fecha_busqueda,))
         rows = cursor.fetchall()
         conn.close()
         
