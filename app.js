@@ -537,7 +537,7 @@ async function fetchStockReferencia() {
 }
 
 function updateProgressBar() {
-    if (stockReferencia.length === 0) {
+    if (historicoProductos.length === 0) {
         progressContainer.style.display = 'none';
         return;
     }
@@ -546,10 +546,10 @@ function updateProgressBar() {
     const dictadosSet = new Set(recentItems.map(i => i.producto.toLowerCase()));
     
     let counted = 0;
-    let total = stockReferencia.length;
+    let total = historicoProductos.length;
     
-    for (let ref of stockReferencia) {
-        if (dictadosSet.has(ref.producto.toLowerCase())) {
+    for (let ref of historicoProductos) {
+        if (dictadosSet.has(ref.nombre.toLowerCase())) {
             counted++;
         }
     }
