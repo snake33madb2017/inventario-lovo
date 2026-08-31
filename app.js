@@ -1131,6 +1131,7 @@ async function loadBalancePorFecha(fecha) {
         
         let costeTotal = 0;
         const categorias = {};
+        const userRol = localStorage.getItem('usuario_lovo_rol');
         
         data.comparativa.forEach(c => {
             if(!categorias[c.categoria]) categorias[c.categoria] = [];
