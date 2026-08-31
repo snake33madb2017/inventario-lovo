@@ -693,6 +693,11 @@ def obtener_comparativa(fecha: str, user: dict = Depends(check_is_admin)):
 @app.get("/api/descargar/hoy")
 def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_is_admin)):
     try:
+        from openpyxl import Workbook
+        from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
+        from openpyxl.utils import get_column_letter
+        import re
+
         if not fecha:
             now = datetime.now()
             fecha_busqueda = now.strftime("%d/%m/%Y")
@@ -703,75 +708,172 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY categoria ASC, hora ASC', (fecha_busqueda,))
+        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY categoria ASC, producto ASC', (fecha_busqueda,))
         rows = cursor.fetchall()
+        
+        cursor.execute('SELECT * FROM stock_referencia')
+        ref_rows = cursor.fetchall()
         conn.close()
         
-        wb_hoy = Workbook()
-        wb_hoy.remove(wb_hoy.active)
+        stock_ref = {row['producto']: dict(row) for row in ref_rows}
         
-        categorias_dict = {}
+        stock_act = {}
+        # Para agrupar por pestañas
+        data_lovo = {}
+        data_cristaleria = {}
+        data_producciones = {}
+        
         for row in rows:
-            cat = row["categoria"]
-            if cat not in categorias_dict:
-                categorias_dict[cat] = []
-            categorias_dict[cat].append([row["fecha"], row["hora"], row["categoria"], row["producto"], row["cantidad_dictada"], row["botellas_llenas"], row["restante_porcentaje"], row["usuario"]])
+            prod = row['producto']
+            cat = row['categoria']
+            if prod not in stock_act: stock_act[prod] = 0.0
             
-        encabezados = ["Fecha", "Hora", "Categoría", "Producto", "Cantidad Dictada", "Botellas Llenas", "Restante (%)", "Usuario"]
-        
-        import re
-        for cat, filas in categorias_dict.items():
-            cat_safe = re.sub(r'[\\*?:/\[\]]', '', cat)[:31]
-            if not cat_safe:
-                cat_safe = "Categoria"
-            ws = wb_hoy.create_sheet(title=cat_safe)
-            ws.append(encabezados)
-            for f in filas: ws.append(f)
-                
-        try:
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute('SELECT * FROM stock_referencia')
-            ref_rows = cursor.fetchall()
-            stock_ref = {row['producto']: dict(row) for row in ref_rows}
-            conn.close()
+            b = row['botellas_llenas']
+            r_str = row['restante_porcentaje']
+            r_val = 0.0
+            if r_str and r_str != '-':
+                try: r_val = float(r_str.replace('%','')) / 100.0
+                except: pass
             
-            stock_act = {}
-            for row in rows:
-                prod = row['producto']
-                if prod not in stock_act: stock_act[prod] = 0.0
-                b = row['botellas_llenas']
-                r_str = row['restante_porcentaje']
-                r_val = 0.0
-                if r_str and r_str != '-':
-                    try: r_val = float(r_str.replace('%','')) / 100.0
-                    except: pass
-                stock_act[prod] += (b + r_val)
+            total_qty = b + r_val
+            stock_act[prod] += total_qty
+            
+            # Separar por pestañas
+            cat_lower = cat.lower() if cat else ''
+            item_data = [prod, total_qty]
+            
+            if 'cristaleria' in cat_lower or 'cristalería' in cat_lower:
+                if cat not in data_cristaleria: data_cristaleria[cat] = []
+                data_cristaleria[cat].append(item_data)
+            elif 'produccion' in cat_lower or 'producción' in cat_lower or 'sirope' in cat_lower:
+                if cat not in data_producciones: data_producciones[cat] = []
+                data_producciones[cat].append(item_data)
+            else:
+                if cat not in data_lovo: data_lovo[cat] = []
+                data_lovo[cat].append(item_data)
                 
-            comparativa = []
-            todos = set(stock_ref.keys()) | set(stock_act.keys())
-            for p in sorted(list(todos)):
-                s_ant = stock_ref[p]['stock_anterior'] if p in stock_ref else 0.0
-                s_act = stock_act[p] if p in stock_act else 0.0
-                precio = stock_ref[p]['precio_unitario'] if p in stock_ref else 0.0
-                cat = stock_ref[p]['categoria'] if p in stock_ref else 'Sin Categoría'
-                cons = s_ant - s_act
-                coste = cons * precio if cons > 0 else 0.0
-                comparativa.append([cat, p, s_ant, s_act, cons, coste])
-                
-            if comparativa:
-                ws_comp = wb_hoy.create_sheet(title="Comparativa")
-                ws_comp.append(["Categoría", "Producto", "Stock Julio", "Stock Actual", "Consumo", "Coste Consumo (€)"])
-                for c in comparativa: ws_comp.append(c)
-        except:
-            pass
+        # Preparar consolidado
+        comparativa = []
+        todos = set(stock_ref.keys()) | set(stock_act.keys())
+        for p in sorted(list(todos)):
+            s_act = stock_act[p] if p in stock_act else 0.0
+            precio = stock_ref[p]['precio_unitario'] if p in stock_ref else 0.0
+            coste_total = s_act * precio
+            comparativa.append([p, s_act, precio, coste_total])
 
-        if len(wb_hoy.sheetnames) == 0:
-             ws = wb_hoy.create_sheet(title="Vacio")
-             ws.append(["No hay registros hoy"])
+        # Estilos
+        fill_header = PatternFill(start_color="D3A548", end_color="D3A548", fill_type="solid")
+        font_header = Font(color="1C2639", bold=True)
+        fill_data = PatternFill(start_color="1C2639", end_color="1C2639", fill_type="solid")
+        font_data = Font(color="D3A548")
+        thin_border = Border(left=Side(style='thin', color="D3A548"),
+                             right=Side(style='thin', color="D3A548"),
+                             top=Side(style='thin', color="D3A548"),
+                             bottom=Side(style='thin', color="D3A548"))
+        align_center = Alignment(horizontal='center', vertical='center')
+        align_left = Alignment(horizontal='left', vertical='center')
+
+        wb = Workbook()
+        wb.remove(wb.active)
+
+        def format_sheet(ws):
+            for col in ws.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = (max_length + 2)
+                ws.column_dimensions[column].width = adjusted_width
+
+        def write_category_data(ws, data_dict, headers):
+            ws.append(headers)
+            for cell in ws[1]:
+                cell.fill = fill_header
+                cell.font = font_header
+                cell.border = thin_border
+                cell.alignment = align_center
+
+            row_idx = 2
+            for cat, items in sorted(data_dict.items()):
+                # Fila separadora de categoría
+                ws.append([cat.upper()] + [''] * (len(headers) - 1))
+                ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=len(headers))
+                cell = ws.cell(row=row_idx, column=1)
+                cell.fill = PatternFill(start_color="D3A548", end_color="D3A548", fill_type="solid")
+                cell.font = Font(color="1C2639", bold=True)
+                cell.alignment = align_center
+                for c in range(1, len(headers) + 1):
+                    ws.cell(row=row_idx, column=c).border = thin_border
+                row_idx += 1
                 
-        temp_file = f"Inventario_Hoy_{fecha_archivo}.xlsx"
-        wb_hoy.save(temp_file)
+                for item in items:
+                    ws.append(item)
+                    for c_idx in range(len(item)):
+                        cell = ws.cell(row=row_idx, column=c_idx + 1)
+                        cell.fill = fill_data
+                        cell.font = font_data
+                        cell.border = thin_border
+                        if isinstance(item[c_idx], (int, float)):
+                            cell.number_format = '0.00'
+                            cell.alignment = align_center
+                        else:
+                            cell.alignment = align_left
+                    row_idx += 1
+            format_sheet(ws)
+
+        # 1. Productos-precio
+        ws1 = wb.create_sheet(title="Productos-precio")
+        ws1.append(["Producto", "Cantidad", "Precio Unitario", "Total"])
+        for cell in ws1[1]:
+            cell.fill = fill_header
+            cell.font = font_header
+            cell.border = thin_border
+            cell.alignment = align_center
+            
+        r_idx = 2
+        for c in comparativa:
+            ws1.append(c)
+            ws1.cell(row=r_idx, column=1).alignment = align_left
+            for col in range(2, 5):
+                ws1.cell(row=r_idx, column=col).alignment = align_center
+            
+            ws1.cell(row=r_idx, column=2).number_format = '0.00'
+            ws1.cell(row=r_idx, column=3).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
+            ws1.cell(row=r_idx, column=4).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
+            
+            for col in range(1, 5):
+                cell = ws1.cell(row=r_idx, column=col)
+                cell.fill = fill_data
+                cell.font = font_data
+                cell.border = thin_border
+            r_idx += 1
+        format_sheet(ws1)
+
+        # 2. Stock lovo
+        if data_lovo:
+            ws2 = wb.create_sheet(title="Stock lovo")
+            write_category_data(ws2, data_lovo, ["Producto", "TOTAL"])
+            
+        # 3. Cristaleria
+        if data_cristaleria:
+            ws3 = wb.create_sheet(title="Cristaleria")
+            write_category_data(ws3, data_cristaleria, ["Producto", "TOTAL"])
+            
+        # 4. Stock producciones
+        if data_producciones:
+            ws4 = wb.create_sheet(title="Stock producciones")
+            write_category_data(ws4, data_producciones, ["Producto", "TOTAL"])
+
+        if len(wb.sheetnames) == 0:
+            ws = wb.create_sheet(title="Vacio")
+            ws.append(["No hay registros hoy"])
+                
+        temp_file = f"Inventario_Cierre_{fecha_archivo}.xlsx"
+        wb.save(temp_file)
         return FileResponse(path=temp_file, filename=temp_file, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
