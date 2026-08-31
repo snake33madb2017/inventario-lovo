@@ -149,6 +149,17 @@ def init_db():
         )
     ''')
     
+    # Stock de Referencia
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS stock_referencia (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            producto TEXT UNIQUE,
+            categoria TEXT,
+            stock_anterior REAL,
+            precio_unitario REAL
+        )
+    ''')
+    
     # Defaults
     cursor.execute('SELECT COUNT(*) FROM usuarios')
     if cursor.fetchone()[0] == 0:
@@ -168,7 +179,117 @@ def init_db():
             cursor.execute("INSERT INTO diccionario (alias, real_name) VALUES (?, ?)", (alias, real_name))
 
     conn.commit()
+    load_stock_referencia(conn)
     conn.close()
+
+def load_stock_referencia(conn):
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(*) FROM stock_referencia')
+    if cursor.fetchone()[0] > 0:
+        return
+        
+    import os
+    if not os.path.exists("STOCK JULIO.xlsx"):
+        return
+        
+    try:
+        import pandas as pd
+        import math
+        
+        cursor.execute("SELECT alias, real_name FROM diccionario")
+        dic_rows = cursor.fetchall()
+        diccionario = {row['alias'].lower(): row['real_name'] for row in dic_rows}
+
+        def normalizar_producto(nombre_raw):
+            if not isinstance(nombre_raw, str): return ""
+            clean = nombre_raw.strip().lower()
+            return diccionario.get(clean, nombre_raw.strip())
+            
+        dfs = pd.read_excel("STOCK JULIO.xlsx", sheet_name=None)
+        
+        stock_dict = {}
+        
+        if 'Productos-precio' in dfs:
+            df_precios = dfs['Productos-precio']
+            for _, row in df_precios.iterrows():
+                if len(row) > 3:
+                    prod = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
+                    precio = row.iloc[3]
+                    if prod and prod.lower() != 'producto' and prod.lower() != 'nan':
+                        precio_val = float(precio) if pd.notna(precio) and isinstance(precio, (int, float)) else 0.0
+                        stock_dict[normalizar_producto(prod)] = {'precio': precio_val, 'stock': 0.0, 'categoria': 'General'}
+                        
+        def process_qty(qty):
+            try: return float(qty) if pd.notna(qty) else 0.0
+            except: return 0.0
+            
+        if 'Stock lovo' in dfs:
+            df = dfs['Stock lovo']
+            current_cat = "Spirits / Licores"
+            for _, row in df.iterrows():
+                col_b = str(row.iloc[1]).strip() if len(row) > 1 and pd.notna(row.iloc[1]) else ""
+                col_c = row.iloc[2] if len(row) > 2 else None
+                col_d = row.iloc[3] if len(row) > 3 else None
+                
+                if not col_b or col_b.lower() == "producto" or col_b.lower() == "nan": continue
+                if col_b.isupper() and len(col_b) > 1 and pd.isna(col_c) and pd.isna(col_d):
+                    current_cat = col_b.title()
+                    continue
+                    
+                prod = normalizar_producto(col_b)
+                qty = process_qty(col_c)
+                if prod not in stock_dict:
+                    stock_dict[prod] = {'precio': 0.0, 'stock': 0.0, 'categoria': current_cat}
+                stock_dict[prod]['stock'] += qty
+                stock_dict[prod]['categoria'] = current_cat
+                
+        if 'Cristaleria' in dfs:
+            df = dfs['Cristaleria']
+            for _, row in df.iterrows():
+                if len(row) > 1:
+                    prod = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
+                    if not prod or prod.lower() == 'nan': continue
+                    prod = normalizar_producto(prod)
+                    total_cols = [c for c in df.columns if "TOTAL" in str(c).upper()]
+                    qty = process_qty(row[total_cols[0]]) if total_cols else 0.0
+                    precio_cols = [c for c in df.columns if "PRECIO" in str(c).upper()]
+                    precio = process_qty(row[precio_cols[0]]) if precio_cols else 0.0
+                    
+                    if prod not in stock_dict:
+                        stock_dict[prod] = {'precio': precio, 'stock': 0.0, 'categoria': 'Cristalería'}
+                    elif stock_dict[prod]['precio'] == 0.0:
+                        stock_dict[prod]['precio'] = precio
+                    stock_dict[prod]['stock'] += qty
+                    
+        if 'Stock producciones' in dfs:
+            df = dfs['Stock producciones']
+            for _, row in df.iterrows():
+                if len(row) > 2:
+                    prod_b = str(row.iloc[1]).strip() if pd.notna(row.iloc[1]) else ""
+                    qty_b = process_qty(row.iloc[2])
+                    if prod_b and prod_b.lower() not in ["nan", "producto en botella", "producciones"]:
+                        prod_b = normalizar_producto(prod_b)
+                        if prod_b not in stock_dict:
+                            stock_dict[prod_b] = {'precio': 0.0, 'stock': 0.0, 'categoria': 'Producción Botellas'}
+                        stock_dict[prod_b]['stock'] += qty_b
+                if len(row) > 5:
+                    prod_g = str(row.iloc[4]).strip() if pd.notna(row.iloc[4]) else ""
+                    qty_g = process_qty(row.iloc[5])
+                    if prod_g and prod_g.lower() not in ["nan", "garrafas"]:
+                        prod_g = normalizar_producto(prod_g)
+                        if prod_g not in stock_dict:
+                            stock_dict[prod_g] = {'precio': 0.0, 'stock': 0.0, 'categoria': 'Producción Garrafas'}
+                        stock_dict[prod_g]['stock'] += qty_g
+                        
+        insert_data = []
+        for p, d in stock_dict.items():
+            if d['stock'] > 0 or d['precio'] > 0:
+                insert_data.append((p, d['categoria'], d['stock'], d['precio']))
+            
+        cursor.executemany("INSERT INTO stock_referencia (producto, categoria, stock_anterior, precio_unitario) VALUES (?, ?, ?, ?)", insert_data)
+        conn.commit()
+    except Exception as e:
+        print(f"Error loading stock_referencia: {e}")
 
 @app.on_event("startup")
 def startup_event():
@@ -355,6 +476,84 @@ def obtener_historial_fecha(fecha: str, user: dict = Depends(check_is_admin)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/inventario/referencia")
+def obtener_referencia(user: dict = Depends(get_current_user)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM stock_referencia')
+        rows = cursor.fetchall()
+        conn.close()
+        referencia = [dict(row) for row in rows]
+        return {"referencia": referencia}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/inventario/comparativa")
+def obtener_comparativa(fecha: str, user: dict = Depends(check_is_admin)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM stock_referencia')
+        ref_rows = cursor.fetchall()
+        stock_ref = {row['producto']: dict(row) for row in ref_rows}
+        
+        cursor.execute('SELECT * FROM registros WHERE fecha = ?', (fecha,))
+        reg_rows = cursor.fetchall()
+        
+        stock_act = {}
+        for row in reg_rows:
+            prod = row['producto']
+            if prod not in stock_act:
+                stock_act[prod] = 0.0
+            
+            botellas = row['botellas_llenas']
+            rest_str = row['restante_porcentaje']
+            rest_val = 0.0
+            if rest_str and rest_str != '-':
+                try: rest_val = float(rest_str.replace('%','')) / 100.0
+                except: pass
+            
+            stock_act[prod] += (botellas + rest_val)
+            
+        conn.close()
+        
+        comparativa = []
+        todos = set(stock_ref.keys()) | set(stock_act.keys())
+        
+        for p in sorted(list(todos)):
+            s_ant = stock_ref[p]['stock_anterior'] if p in stock_ref else 0.0
+            s_act = stock_act[p] if p in stock_act else 0.0
+            precio = stock_ref[p]['precio_unitario'] if p in stock_ref else 0.0
+            cat = stock_ref[p]['categoria'] if p in stock_ref else 'Sin Categoría'
+            
+            consumo = s_ant - s_act
+            coste = consumo * precio if consumo > 0 else 0.0
+            
+            alerta = "OK"
+            if p not in stock_act and s_ant > 0:
+                alerta = "No Contado"
+            elif consumo < 0:
+                alerta = "Stock Negativo"
+            elif s_ant > 0 and consumo > (s_ant * 0.5):
+                alerta = "Consumo Elevado"
+                
+            comparativa.append({
+                "producto": p,
+                "categoria": cat,
+                "stock_anterior": round(s_ant, 2),
+                "stock_actual": round(s_act, 2),
+                "consumo": round(consumo, 2),
+                "coste_consumo": round(coste, 2),
+                "precio_unitario": precio,
+                "alerta": alerta
+            })
+            
+        return {"comparativa": comparativa}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/descargar/hoy")
 def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_is_admin)):
     try:
@@ -393,6 +592,44 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             ws.append(encabezados)
             for f in filas: ws.append(f)
                 
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute('SELECT * FROM stock_referencia')
+            ref_rows = cursor.fetchall()
+            stock_ref = {row['producto']: dict(row) for row in ref_rows}
+            conn.close()
+            
+            stock_act = {}
+            for row in rows:
+                prod = row['producto']
+                if prod not in stock_act: stock_act[prod] = 0.0
+                b = row['botellas_llenas']
+                r_str = row['restante_porcentaje']
+                r_val = 0.0
+                if r_str and r_str != '-':
+                    try: r_val = float(r_str.replace('%','')) / 100.0
+                    except: pass
+                stock_act[prod] += (b + r_val)
+                
+            comparativa = []
+            todos = set(stock_ref.keys()) | set(stock_act.keys())
+            for p in sorted(list(todos)):
+                s_ant = stock_ref[p]['stock_anterior'] if p in stock_ref else 0.0
+                s_act = stock_act[p] if p in stock_act else 0.0
+                precio = stock_ref[p]['precio_unitario'] if p in stock_ref else 0.0
+                cat = stock_ref[p]['categoria'] if p in stock_ref else 'Sin Categoría'
+                cons = s_ant - s_act
+                coste = cons * precio if cons > 0 else 0.0
+                comparativa.append([cat, p, s_ant, s_act, cons, coste])
+                
+            if comparativa:
+                ws_comp = wb_hoy.create_sheet(title="Comparativa")
+                ws_comp.append(["Categoría", "Producto", "Stock Julio", "Stock Actual", "Consumo", "Coste Consumo (€)"])
+                for c in comparativa: ws_comp.append(c)
+        except:
+            pass
+
         if len(wb_hoy.sheetnames) == 0:
              ws = wb_hoy.create_sheet(title="Vacio")
              ws.append(["No hay registros hoy"])

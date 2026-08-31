@@ -5,6 +5,7 @@ let isListening = false;
 let recognition = null;
 let recentItems = [];
 let historicoProductos = [];
+let stockReferencia = [];
 let ALIASES = {};
 let categorias = [];
 
@@ -23,6 +24,11 @@ const adminToggleBtn = document.getElementById('admin-toggle-btn');
 const logoutBtn = document.getElementById('logout-btn');
 const categoryDropdown = document.getElementById('category-dropdown');
 const statusIndicator = document.getElementById('status-indicator');
+
+const progressContainer = document.getElementById('progress-container');
+const progressText = document.getElementById('progress-text');
+const progressPercent = document.getElementById('progress-percent');
+const progressBarFill = document.getElementById('progress-bar-fill');
 
 const laboratorioToggleBtn = document.getElementById('laboratorio-toggle-btn');
 const laboratorioView = document.getElementById('laboratorio-view');
@@ -180,6 +186,7 @@ function showApp(userName, userRol) {
     }
     
     checkServerConnection();
+    fetchStockReferencia();
 }
 
 async function handleLogin(e) {
@@ -513,8 +520,44 @@ async function fetchInventarioHoy() {
             const data = await response.json();
             recentItems = data.registros || [];
             renderList();
+            updateProgressBar();
         }
     } catch (error) {}
+}
+
+async function fetchStockReferencia() {
+    try {
+        const response = await fetch(`${SERVER_URL}/api/inventario/referencia`, { headers: getAuthHeaders() });
+        if (response.ok) {
+            const data = await response.json();
+            stockReferencia = data.referencia || [];
+            updateProgressBar();
+        }
+    } catch (error) {}
+}
+
+function updateProgressBar() {
+    if (stockReferencia.length === 0) {
+        progressContainer.style.display = 'none';
+        return;
+    }
+    progressContainer.style.display = 'block';
+    
+    const dictadosSet = new Set(recentItems.map(i => i.producto.toLowerCase()));
+    
+    let counted = 0;
+    let total = stockReferencia.length;
+    
+    for (let ref of stockReferencia) {
+        if (dictadosSet.has(ref.producto.toLowerCase())) {
+            counted++;
+        }
+    }
+    
+    let percent = total === 0 ? 0 : Math.round((counted / total) * 100);
+    progressText.textContent = `${counted} de ${total} referencias activas completadas`;
+    progressPercent.textContent = `${percent}%`;
+    progressBarFill.style.width = `${percent}%`;
 }
 
 async function fetchProductosHistoricos() {
@@ -671,10 +714,18 @@ function renderList(filterText = '') {
         itemsToRender.forEach(item => {
             const li = document.createElement('div');
             li.className = 'item-card-compact';
+            
+            const ref = stockReferencia.find(r => r.producto.toLowerCase() === item.producto.toLowerCase());
+            let refBadge = '';
+            if (ref) {
+                refBadge = `<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 2px;">Stock previo: ${ref.stock_anterior} btls</div>`;
+            }
+            
             li.innerHTML = `
                 <div class="item-info">
                     <span class="item-name">${item.producto}</span>
                     <span class="item-time">${item.hora}</span>
+                    ${refBadge}
                 </div>
                 <div class="item-quantity">${item.cantidad_dictada}</div>
             `;
@@ -896,7 +947,19 @@ function setupAdminTabs() {
                 } else {
                     alert('Error descargando Excel del historial');
                 }
-            } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); }
+        });
+    }
+    
+    const balanceDateSelect = document.getElementById('balance-date-select');
+    if (balanceDateSelect) {
+        balanceDateSelect.addEventListener('change', (e) => {
+            if(e.target.value) {
+                loadBalancePorFecha(e.target.value);
+            } else {
+                document.getElementById('balance-table-body').innerHTML = '';
+                document.getElementById('balance-total-cost').textContent = '0.00 €';
+            }
         });
     }
     
@@ -907,6 +970,19 @@ function setupAdminTabs() {
             const rows = document.querySelectorAll('#history-table-body tr');
             rows.forEach(row => {
                 const prod = row.children[0].textContent.toLowerCase();
+                if(prod.includes(term)) row.style.display = '';
+                else row.style.display = 'none';
+            });
+        });
+    }
+    
+    const balanceSearchInput = document.getElementById('balance-search-input');
+    if (balanceSearchInput) {
+        balanceSearchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const rows = document.querySelectorAll('#balance-table-body tr');
+            rows.forEach(row => {
+                const prod = row.children[1].textContent.toLowerCase();
                 if(prod.includes(term)) row.style.display = '';
                 else row.style.display = 'none';
             });
@@ -968,16 +1044,68 @@ async function loadHistorialFechas() {
     try {
         const res = await fetch(`${SERVER_URL}/api/inventario/fechas`, { headers: getAuthHeaders() });
         const data = await res.json();
-        const select = document.getElementById('history-date-select');
-        if (!select) return;
-        select.innerHTML = '<option value="">Selecciona fecha</option>';
-        data.fechas.forEach(f => {
-            const opt = document.createElement('option');
-            opt.value = f;
-            opt.textContent = f;
-            select.appendChild(opt);
-        });
+        
+        const selectHist = document.getElementById('history-date-select');
+        const selectBal = document.getElementById('balance-date-select');
+        
+        if (selectHist) {
+            selectHist.innerHTML = '<option value="">Selecciona fecha</option>';
+            data.fechas.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                selectHist.appendChild(opt);
+            });
+        }
+        
+        if (selectBal) {
+            selectBal.innerHTML = '<option value="">Selecciona fecha</option>';
+            data.fechas.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                selectBal.appendChild(opt);
+            });
+        }
     } catch(e) { console.error("Error cargando fechas de historial", e); }
+}
+
+async function loadBalancePorFecha(fecha) {
+    try {
+        const res = await fetch(`${SERVER_URL}/api/inventario/comparativa?fecha=${encodeURIComponent(fecha)}`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        const tbody = document.getElementById('balance-table-body');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        let costeTotal = 0;
+        
+        data.comparativa.forEach(c => {
+            const tr = document.createElement('tr');
+            
+            let badge = '';
+            if (c.alerta === 'OK') badge = '<span style="color:#10b981;">🟢 OK</span>';
+            else if (c.alerta === 'No Contado') badge = '<span style="color:#f59e0b;">🟠 No Contado</span>';
+            else if (c.alerta === 'Stock Negativo') badge = '<span style="color:#ef4444;">🔴 Negativo</span>';
+            else if (c.alerta === 'Consumo Elevado') badge = '<span style="color:#ef4444;">🔴 Elevado</span>';
+            
+            tr.innerHTML = `
+                <td>${badge}</td>
+                <td style="font-weight:bold;">${c.producto}</td>
+                <td><span style="font-size:0.75rem; color:var(--primary-color);">${c.categoria}</span></td>
+                <td style="text-align:center;">${c.stock_anterior}</td>
+                <td style="text-align:center;">${c.stock_actual}</td>
+                <td style="text-align:center; font-weight:bold;">${c.consumo}</td>
+                <td style="text-align:right;">${c.coste_consumo.toFixed(2)} €</td>
+            `;
+            tbody.appendChild(tr);
+            
+            costeTotal += c.coste_consumo;
+        });
+        
+        document.getElementById('balance-total-cost').textContent = costeTotal.toFixed(2) + ' €';
+        
+    } catch(e) { console.error("Error cargando comparativa", e); }
 }
 
 async function loadHistorialPorFecha(fecha) {

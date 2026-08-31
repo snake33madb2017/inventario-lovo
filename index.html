@@ -114,6 +114,15 @@
                 </div>
             </div>
         </header>
+        <div id="progress-container" style="padding: 10px 20px; background: rgba(0,0,0,0.2); display: none;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 5px; color: var(--text-main);">
+                <span id="progress-text">0 de 0 referencias activas completadas</span>
+                <span id="progress-percent">0%</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                <div id="progress-bar-fill" style="width: 0%; height: 100%; background: var(--primary-color); transition: width 0.3s ease;"></div>
+            </div>
+        </div>
 
         <main>
             <div class="category-selector">
@@ -189,6 +198,7 @@
                 <button class="tab-btn" data-tab="tab-categorias">Categorías</button>
                 <button class="tab-btn" data-tab="tab-diccionario">Diccionario</button>
                 <button class="tab-btn" data-tab="tab-historial">Historial</button>
+                <button class="tab-btn" data-tab="tab-balance">Balance</button>
             </div>
 
             <div id="tab-usuarios" class="tab-content active">
@@ -259,7 +269,44 @@
                             </tr>
                         </thead>
                         <tbody id="history-table-body">
-                            <!-- Filas inyectadas por JS -->
+                            <!-- Los datos del historial aparecerán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div id="tab-balance" class="tab-content hidden">
+                <h3>Balance y Comparativa Mensual</h3>
+                <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 1px solid var(--primary-color);">
+                    <h4 style="margin: 0; color: #888; font-size: 1rem;">Coste Total Consumido</h4>
+                    <div id="balance-total-cost" style="font-size: 2.5rem; color: var(--primary-color); font-weight: bold; margin-top: 10px;">0.00 €</div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <select id="balance-date-select" style="flex: 1; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <option value="">Selecciona fecha</option>
+                    </select>
+                </div>
+                
+                <div class="search-container" style="margin-bottom: 15px;">
+                    <input type="text" id="balance-search-input" placeholder="🔍 Buscar producto en la comparativa..." autocomplete="off">
+                </div>
+                
+                <div class="table-container">
+                    <table class="history-table" id="balance-table">
+                        <thead>
+                            <tr>
+                                <th>Estado</th>
+                                <th>Producto</th>
+                                <th>Categoría</th>
+                                <th>Stk Ant.</th>
+                                <th>Stk Act.</th>
+                                <th>Consumo</th>
+                                <th>Coste (€)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="balance-table-body">
+                            <!-- JS fill -->
                         </tbody>
                     </table>
                 </div>
