@@ -252,26 +252,14 @@
                     <select id="history-date-select" style="flex: 1; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
                         <option value="">Selecciona fecha</option>
                     </select>
+                    <button id="delete-history-btn" class="download-btn" style="background: rgba(220, 53, 69, 0.2); color: #ff6b6b; border: 1px solid #ff6b6b;">🗑️ Borrar Cierre</button>
                     <button id="download-history-btn" class="download-btn">Descargar Excel</button>
                 </div>
                 <div class="search-container" style="margin-bottom: 15px;">
                     <input type="text" id="history-search-input" placeholder="🔍 Buscar producto en esta fecha..." autocomplete="off">
                 </div>
-                <div class="table-container">
-                    <table class="history-table">
-                        <thead>
-                            <tr>
-                                <th>Producto</th>
-                                <th>Categoría</th>
-                                <th>Btls</th>
-                                <th>Rest.</th>
-                                <th>Usuario</th>
-                            </tr>
-                        </thead>
-                        <tbody id="history-table-body">
-                            <!-- Los datos del historial aparecerán aquí -->
-                        </tbody>
-                    </table>
+                <div id="history-cards-container" class="accordion-container">
+                    <!-- Los datos del historial aparecerán aquí agrupados por categoría -->
                 </div>
             </div>
             

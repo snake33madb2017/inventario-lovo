@@ -928,6 +928,29 @@ function setupAdminTabs() {
         });
     }
     
+    const deleteHistoryBtn = document.getElementById('delete-history-btn');
+    if (deleteHistoryBtn) {
+        deleteHistoryBtn.addEventListener('click', async () => {
+            const fecha = document.getElementById('history-date-select').value;
+            if(!fecha) return alert("Selecciona una fecha primero");
+            if(confirm(`¿Estás seguro de que deseas eliminar TODOS los registros de la fecha ${fecha}?`)) {
+                try {
+                    const res = await fetch(`${SERVER_URL}/api/inventario/historial?fecha=${encodeURIComponent(fecha)}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders()
+                    });
+                    if(res.ok) {
+                        alert("Fecha eliminada correctamente.");
+                        loadHistorialFechas();
+                        document.getElementById('history-cards-container').innerHTML = '';
+                    } else {
+                        alert("Error al eliminar la fecha.");
+                    }
+                } catch(e) { console.error(e); }
+            }
+        });
+    }
+
     const downloadHistoryBtn = document.getElementById('download-history-btn');
     if (downloadHistoryBtn) {
         downloadHistoryBtn.addEventListener('click', async () => {
@@ -967,11 +990,24 @@ function setupAdminTabs() {
     if (historySearchInput) {
         historySearchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
-            const rows = document.querySelectorAll('#history-table-body tr');
-            rows.forEach(row => {
-                const prod = row.children[0].textContent.toLowerCase();
-                if(prod.includes(term)) row.style.display = '';
-                else row.style.display = 'none';
+            const accordions = document.querySelectorAll('.accordion');
+            accordions.forEach(acc => {
+                const cards = acc.querySelectorAll('.history-card');
+                let hasMatch = false;
+                cards.forEach(card => {
+                    if(card.dataset.prod.includes(term)) {
+                        card.style.display = 'grid';
+                        hasMatch = true;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+                if(hasMatch) {
+                    acc.style.display = 'block';
+                    if(term.length > 0) acc.querySelector('.accordion-content').classList.add('open');
+                } else {
+                    acc.style.display = 'none';
+                }
             });
         });
     }
@@ -1112,20 +1148,50 @@ async function loadHistorialPorFecha(fecha) {
     try {
         const res = await fetch(`${SERVER_URL}/api/inventario/historial?fecha=${encodeURIComponent(fecha)}`, { headers: getAuthHeaders() });
         const data = await res.json();
-        const tbody = document.getElementById('history-table-body');
-        if (!tbody) return;
-        tbody.innerHTML = '';
+        const container = document.getElementById('history-cards-container');
+        if (!container) return;
+        container.innerHTML = '';
+        
+        const categorias = {};
         data.registros.forEach(r => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${r.producto}</td>
-                <td><span style="font-size:0.75rem; color:var(--primary-color);">${r.categoria}</span></td>
-                <td style="font-weight:bold; text-align:center;">${r.botellas_llenas}</td>
-                <td style="text-align:center;">${r.restante_porcentaje}</td>
-                <td style="font-size:0.8rem; color:var(--text-muted);">${r.usuario}</td>
-            `;
-            tbody.appendChild(tr);
+            if(!categorias[r.categoria]) categorias[r.categoria] = [];
+            categorias[r.categoria].push(r);
         });
+        
+        for (const cat in categorias) {
+            const acc = document.createElement('div');
+            acc.className = 'accordion';
+            
+            const header = document.createElement('div');
+            header.className = 'accordion-header';
+            header.innerHTML = `<span>${cat}</span> <span style="font-size:0.8rem; opacity:0.8;">${categorias[cat].length} ítems ▾</span>`;
+            
+            const content = document.createElement('div');
+            content.className = 'accordion-content';
+            
+            categorias[cat].forEach(r => {
+                const card = document.createElement('div');
+                card.className = 'history-card';
+                card.dataset.prod = r.producto.toLowerCase();
+                card.innerHTML = `
+                    <div class="prod-name">${r.producto}</div>
+                    <div class="prod-data"><strong>${r.botellas_llenas}</strong> btls</div>
+                    <div class="prod-data">${r.restante_porcentaje}</div>
+                    <div class="prod-user">${r.usuario}</div>
+                `;
+                content.appendChild(card);
+            });
+            
+            header.onclick = () => {
+                content.classList.toggle('open');
+                const isOp = content.classList.contains('open');
+                header.querySelector('span:last-child').innerText = `${categorias[cat].length} ítems ${isOp ? '▴' : '▾'}`;
+            };
+            
+            acc.appendChild(header);
+            acc.appendChild(content);
+            container.appendChild(acc);
+        }
     } catch(e) { console.error("Error cargando historial de fecha", e); }
 }
 
