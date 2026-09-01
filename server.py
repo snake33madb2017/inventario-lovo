@@ -958,7 +958,9 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
                             right_cell = ws.cell(row=cell.row, column=cell.column + 1)
                             # Si la celda derecha está vacía o ya es numérica, sobrescribimos
                             # Ya que "justo a la derecha" es donde se anotan las cantidades
-                            right_cell.value = stock_act.get(real_prod, 0.0)
+                            # IMPORTANT: No sobrescribir fórmulas
+                            if not (isinstance(right_cell.value, str) and right_cell.value.startswith('=')):
+                                right_cell.value = stock_act.get(real_prod, 0.0)
                             
                             # Escribir auditor en la nueva columna al final de la tabla
                             if real_prod in auditors and auditors[real_prod]:
