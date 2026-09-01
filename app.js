@@ -169,12 +169,11 @@ function showApp(userName, userRol) {
     if(userRol === 'produccion') rolText = ' (Producción)';
     userDisplay.textContent = userName + rolText;
     
+    adminToggleBtn.classList.remove('hidden');
     if(userRol === 'encargado') {
-        adminToggleBtn.classList.remove('hidden');
         downloadBtn.classList.remove('hidden');
         clearMonthBtn.classList.remove('hidden');
     } else {
-        adminToggleBtn.classList.add('hidden');
         downloadBtn.classList.add('hidden');
         clearMonthBtn.classList.add('hidden');
     }
@@ -769,6 +768,22 @@ function toggleAdminView() {
         adminView.classList.remove('hidden');
         appView.classList.add('hidden');
         if(laboratorioView) laboratorioView.classList.add('hidden');
+        
+        const userRol = localStorage.getItem('usuario_lovo_rol');
+        const adminTabs = document.querySelectorAll('.admin-tabs .tab-btn');
+        adminTabs.forEach(btn => {
+            if (userRol !== 'encargado' && btn.dataset.tab !== 'tab-diccionario') {
+                btn.style.display = 'none';
+            } else {
+                btn.style.display = 'inline-block';
+            }
+        });
+        
+        if (userRol !== 'encargado') {
+            const diccBtn = document.querySelector('.tab-btn[data-tab="tab-diccionario"]');
+            if(diccBtn) diccBtn.click();
+        }
+        
         loadAdminData();
     } else {
         adminView.classList.add('hidden');

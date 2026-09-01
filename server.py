@@ -535,10 +535,7 @@ def borrar_ultimo(user: dict = Depends(get_current_user)):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        if user.get("rol") == "encargado":
-            cursor.execute('SELECT id FROM registros ORDER BY id DESC LIMIT 1')
-        else:
-            cursor.execute('SELECT id FROM registros WHERE usuario = ? ORDER BY id DESC LIMIT 1', (user.get("nombre"),))
+        cursor.execute('SELECT id FROM registros WHERE usuario = ? ORDER BY id DESC LIMIT 1', (user.get("nombre"),))
             
         row = cursor.fetchone()
         if row:
@@ -769,10 +766,19 @@ def obtener_referencia(user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/inventario/comparativa")
-def obtener_comparativa(fecha: str, user: dict = Depends(check_is_admin)):
+def obtener_comparativa(fecha: Optional[str] = None, user: dict = Depends(check_is_admin)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
+        
+        if not fecha:
+            cursor.execute('SELECT fecha FROM registros ORDER BY id DESC LIMIT 1')
+            row = cursor.fetchone()
+            if row:
+                fecha = row['fecha']
+            else:
+                now = datetime.now()
+                fecha = now.strftime("%d/%m/%Y")
         
         cursor.execute('SELECT * FROM stock_referencia')
         ref_rows = cursor.fetchall()
@@ -791,7 +797,15 @@ def obtener_comparativa(fecha: str, user: dict = Depends(check_is_admin)):
             rest_str = row['restante_porcentaje']
             rest_val = 0.0
             if rest_str and rest_str != '-':
-                try: rest_val = float(rest_str.replace('%','')) / 100.0
+                try:
+                    rest_str_clean = str(rest_str).strip()
+                    if '%' in rest_str_clean:
+                        rest_val = float(rest_str_clean.replace('%', '')) / 100.0
+                    else:
+                        rest_val = float(rest_str_clean)
+                        # if someone entered 50 instead of 50%, we can assume it's percentage if > 1
+                        if rest_val > 1:
+                            rest_val = rest_val / 100.0
                 except: pass
             
             stock_act[prod] += (botellas + rest_val)
@@ -884,7 +898,14 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             r_str = row['restante_porcentaje']
             r_val = 0.0
             if r_str and r_str != '-':
-                try: r_val = float(r_str.replace('%','')) / 100.0
+                try:
+                    rest_str_clean = str(r_str).strip()
+                    if '%' in rest_str_clean:
+                        r_val = float(rest_str_clean.replace('%', '')) / 100.0
+                    else:
+                        r_val = float(rest_str_clean)
+                        if r_val > 1:
+                            r_val = r_val / 100.0
                 except: pass
             
             total_qty = b + r_val
@@ -1460,29 +1481,31 @@ def borrar_categoria(cid: int, user: dict = Depends(check_is_admin)):
     return {"status": "success"}
 
 @app.get("/api/admin/diccionario")
-def get_diccionario(user: dict = Depends(check_is_admin)):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, alias, real_name FROM diccionario')
-    d = [dict(r) for r in cursor.fetchall()]
-    conn.close()
-    return d
+def get_diccionario(user: dict = Depends(get_current_user)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, alias, real_name FROM diccionario')
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/admin/diccionario")
-def crear_diccionario(d: NuevoDiccionario, user: dict = Depends(check_is_admin)):
-    conn = get_db_connection()
-    cursor = conn.cursor()
+def crear_diccionario(d: NuevoDiccionario, user: dict = Depends(get_current_user)):
     try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
         cursor.execute("INSERT INTO diccionario (alias, real_name) VALUES (?, ?)", (d.alias.lower(), d.real_name))
         conn.commit()
-    except sqlite3.IntegrityError:
         conn.close()
-        raise HTTPException(status_code=400, detail="El alias ya existe")
-    conn.close()
-    return {"status": "success"}
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.delete("/api/admin/diccionario/{did}")
-def borrar_diccionario(did: int, user: dict = Depends(check_is_admin)):
+def borrar_diccionario(did: int, user: dict = Depends(get_current_user)):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('DELETE FROM diccionario WHERE id = ?', (did,))
