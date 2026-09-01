@@ -911,6 +911,7 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         conn.close()
         
         stock_act = {}
+        auditors = {}
         for row in rows:
             prod_raw = row['producto'].strip().lower()
             prod_norm = diccionario.get(prod_raw, prod_raw)
@@ -931,24 +932,37 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             total_qty = b + r_val
             if prod_norm not in stock_act: 
                 stock_act[prod_norm] = 0.0
+                auditors[prod_norm] = set()
             stock_act[prod_norm] += total_qty
+            if row['usuario']:
+                auditors[prod_norm].add(row['usuario'])
             
         # Modificar Excel
         wb = load_workbook(template_file)
         ignore_words = {"producto", "total", "precio", "articulos", "cristaleria", "producciones", "botellas", "garrafas", "observaciones"}
         
         for ws in wb.worksheets:
+            auditor_col = ws.max_column + 1
             for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
                 for cell in row:
                     if cell.value and isinstance(cell.value, str):
                         cell_norm = cell.value.strip().lower()
-                        # Verificar si es un producto conocido y no una palabra a ignorar
-                        if cell_norm not in ignore_words and cell_norm in diccionario:
+                        if cell_norm == "producto" or cell_norm == "articulos":
+                            # Poner encabezado de auditores en la misma fila que el encabezado Producto
+                            header_cell = ws.cell(row=cell.row, column=auditor_col)
+                            header_cell.value = "Auditores"
+                            from openpyxl.styles import Font
+                            header_cell.font = Font(bold=True)
+                        elif cell_norm not in ignore_words and cell_norm in diccionario:
                             real_prod = diccionario[cell_norm]
                             right_cell = ws.cell(row=cell.row, column=cell.column + 1)
                             # Si la celda derecha está vacía o ya es numérica, sobrescribimos
                             # Ya que "justo a la derecha" es donde se anotan las cantidades
                             right_cell.value = stock_act.get(real_prod, 0.0)
+                            
+                            # Escribir auditor en la nueva columna al final de la tabla
+                            if real_prod in auditors and auditors[real_prod]:
+                                ws.cell(row=cell.row, column=auditor_col).value = ", ".join(auditors[real_prod])
 
         temp_file = f"Inventario_Cierre_{fecha_archivo}.xlsx"
         wb.save(temp_file)
