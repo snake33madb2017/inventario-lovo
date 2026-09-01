@@ -938,22 +938,16 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
                 auditors[prod_norm].add(row['usuario'])
             
         # Modificar Excel
+        from openpyxl.comments import Comment
         wb = load_workbook(template_file)
         ignore_words = {"producto", "total", "precio", "articulos", "cristaleria", "producciones", "botellas", "garrafas", "observaciones"}
         
         for ws in wb.worksheets:
-            auditor_col = ws.max_column + 1
             for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
                 for cell in row:
                     if cell.value and isinstance(cell.value, str):
                         cell_norm = cell.value.strip().lower()
-                        if cell_norm == "producto" or cell_norm == "articulos":
-                            # Poner encabezado de auditores en la misma fila que el encabezado Producto
-                            header_cell = ws.cell(row=cell.row, column=auditor_col)
-                            header_cell.value = "Auditores"
-                            from openpyxl.styles import Font
-                            header_cell.font = Font(bold=True)
-                        elif cell_norm not in ignore_words and cell_norm in diccionario:
+                        if cell_norm not in ignore_words and cell_norm in diccionario:
                             real_prod = diccionario[cell_norm]
                             right_cell = ws.cell(row=cell.row, column=cell.column + 1)
                             # Si la celda derecha está vacía o ya es numérica, sobrescribimos
@@ -962,9 +956,10 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
                             if not (isinstance(right_cell.value, str) and right_cell.value.startswith('=')):
                                 right_cell.value = stock_act.get(real_prod, 0.0)
                             
-                            # Escribir auditor en la nueva columna al final de la tabla
+                            # Escribir auditor como comentario en lugar de una columna separada
                             if real_prod in auditors and auditors[real_prod]:
-                                ws.cell(row=cell.row, column=auditor_col).value = ", ".join(auditors[real_prod])
+                                auditor_names = ", ".join(auditors[real_prod])
+                                right_cell.comment = Comment(f"Contado por: {auditor_names}", "Sistema")
 
         temp_file = f"Inventario_Cierre_{fecha_archivo}.xlsx"
         wb.save(temp_file)
