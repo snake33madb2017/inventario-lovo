@@ -57,6 +57,10 @@ import os
 DB_DIR = "/data" if os.path.exists("/data") else "."
 DB_FILE = os.environ.get("DB_FILE", os.path.join(DB_DIR, "inventario.db"))
 
+import shutil
+if DB_DIR == "/data" and not os.path.exists(DB_FILE) and os.path.exists("inventario.db"):
+    shutil.copy2("inventario.db", DB_FILE)
+
 class Registro(BaseModel):
     categoria: str
     producto: str
