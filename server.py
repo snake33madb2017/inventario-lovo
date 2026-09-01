@@ -189,6 +189,12 @@ def init_db():
     if cursor.fetchone()[0] == 0:
         cursor.execute("INSERT INTO usuarios (dni, nombre, password, rol) VALUES (?, ?, ?, ?)", 
                        ("Z3738848L", "Marco Daza", get_password_hash("Lovo2026*"), "encargado"))
+    else:
+        # Asegurar que el usuario encargado Z3738848L siempre exista
+        cursor.execute('SELECT COUNT(*) FROM usuarios WHERE dni = ?', ("Z3738848L",))
+        if cursor.fetchone()[0] == 0:
+            cursor.execute("INSERT INTO usuarios (dni, nombre, password, rol) VALUES (?, ?, ?, ?)", 
+                           ("Z3738848L", "Marco Daza", get_password_hash("Lovo2026*"), "encargado"))
                        
     cursor.execute('SELECT COUNT(*) FROM categorias')
     if cursor.fetchone()[0] == 0:
