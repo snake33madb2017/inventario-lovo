@@ -872,11 +872,10 @@ def obtener_comparativa(fecha: Optional[str] = None, user: dict = Depends(check_
 @app.get("/api/descargar/hoy")
 def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_is_admin)):
     try:
-        from openpyxl import Workbook
-        from openpyxl.styles import PatternFill, Font, Border, Side, Alignment
-        from openpyxl.utils import get_column_letter
-        import re
-
+        from openpyxl import load_workbook
+        import os
+        from fastapi.responses import FileResponse
+        
         if not fecha:
             now = datetime.now()
             fecha_busqueda = now.strftime("%d/%m/%Y")
@@ -884,37 +883,37 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         else:
             fecha_busqueda = fecha
             fecha_archivo = fecha.replace("/", "-")
-        
+            
+        template_file = "STOCK JULIO.xlsx"
+        if not os.path.exists(template_file):
+            raise HTTPException(status_code=404, detail="Plantilla STOCK JULIO.xlsx no encontrada")
+            
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY categoria ASC, producto ASC', (fecha_busqueda,))
-        rows = cursor.fetchall()
         
-        cursor.execute('SELECT * FROM stock_referencia')
-        ref_rows = cursor.fetchall()
+        # Cargar diccionario
+        cursor.execute("SELECT alias, real_name FROM diccionario")
+        dic_rows = cursor.fetchall()
+        diccionario = {r['alias'].lower(): r['real_name'].lower() for r in dic_rows}
+        for r in dic_rows:
+            diccionario[r['real_name'].lower()] = r['real_name'].lower()
+            
+        # Cargar todos los productos de stock referencia
+        cursor.execute("SELECT producto FROM stock_referencia")
+        for r in cursor.fetchall():
+            prod_clean = r['producto'].strip().lower()
+            if prod_clean not in diccionario:
+                diccionario[prod_clean] = prod_clean
+
+        # Cargar registros del día
+        cursor.execute('SELECT * FROM registros WHERE fecha = ?', (fecha_busqueda,))
+        rows = cursor.fetchall()
         conn.close()
         
-        stock_ref = {row['producto']: dict(row) for row in ref_rows}
-        
         stock_act = {}
-        stock_act_user = {}
-        # Para agrupar por pestañas
-        data_lovo = {}
-        data_cristaleria = {}
-        data_producciones = {}
-        
         for row in rows:
-            prod = row['producto']
-            cat = row['categoria']
-            try:
-                usuario = row['usuario']
-                if not usuario: usuario = 'Sistema'
-            except:
-                usuario = 'Sistema'
-            
-            if prod not in stock_act: stock_act[prod] = 0.0
-            if prod not in stock_act_user: stock_act_user[prod] = set()
-            stock_act_user[prod].add(usuario)
+            prod_raw = row['producto'].strip().lower()
+            prod_norm = diccionario.get(prod_raw, prod_raw)
             
             b = row['botellas_llenas']
             r_str = row['restante_porcentaje']
@@ -929,290 +928,28 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
                         if r_val > 1:
                             r_val = r_val / 100.0
                 except: pass
-            
             total_qty = b + r_val
-            stock_act[prod] += total_qty
+            if prod_norm not in stock_act: 
+                stock_act[prod_norm] = 0.0
+            stock_act[prod_norm] += total_qty
             
-            # Separar por pestañas
-            cat_lower = cat.lower() if cat else ''
-            item_data = [prod, total_qty, usuario]
-            
-            if 'cristaleria' in cat_lower or 'cristalería' in cat_lower:
-                if cat not in data_cristaleria: data_cristaleria[cat] = []
-                data_cristaleria[cat].append(item_data)
-            elif 'produccion' in cat_lower or 'producción' in cat_lower or 'sirope' in cat_lower:
-                if cat not in data_producciones: data_producciones[cat] = []
-                data_producciones[cat].append(item_data)
-            else:
-                if cat not in data_lovo: data_lovo[cat] = []
-                data_lovo[cat].append(item_data)
-                
-        # Preparar consolidado
-        comparativa = []
-        todos = set(stock_ref.keys()) | set(stock_act.keys())
-        for p in sorted(list(todos)):
-            s_ant_val = stock_ref[p].get('stock_anterior') if p in stock_ref else 0.0
-            s_ant = float(s_ant_val) if s_ant_val is not None else 0.0
-            
-            s_act = stock_act[p] if p in stock_act else 0.0
-            
-            precio_val = stock_ref[p].get('precio_unitario') if p in stock_ref else 0.0
-            precio = float(precio_val) if precio_val is not None else 0.0
-            
-            diferencia = s_act - s_ant
-            coste_diferencia = diferencia * precio
-            coste_total = s_act * precio
-            usuarios_involucrados = ", ".join(sorted(list(stock_act_user.get(p, {"-"}))))
-            comparativa.append([p, s_ant, s_act, diferencia, precio, coste_total, coste_diferencia, usuarios_involucrados])
-
-        # Estilos
-        fill_header = PatternFill(start_color="D3A548", end_color="D3A548", fill_type="solid")
-        font_header = Font(color="1C2639", bold=True)
-        fill_data = PatternFill(start_color="1C2639", end_color="1C2639", fill_type="solid")
-        font_data = Font(color="D3A548")
-        thin_border = Border(left=Side(style='thin', color="D3A548"),
-                             right=Side(style='thin', color="D3A548"),
-                             top=Side(style='thin', color="D3A548"),
-                             bottom=Side(style='thin', color="D3A548"))
-        align_center = Alignment(horizontal='center', vertical='center')
-        align_left = Alignment(horizontal='left', vertical='center')
-
-        wb = Workbook()
-        wb.remove(wb.active)
-
-        def format_sheet(ws):
-            from openpyxl.utils import get_column_letter
-            for idx, col in enumerate(ws.columns, 1):
-                max_length = 0
-                column = get_column_letter(idx)
-                for cell in col:
-                    try:
-                        if cell.value and len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                adjusted_width = (max_length + 2)
-                ws.column_dimensions[column].width = adjusted_width
-
-        def write_category_data(ws, data_dict, headers):
-            ws.append(headers)
-            for cell in ws[1]:
-                cell.fill = fill_header
-                cell.font = font_header
-                cell.border = thin_border
-                cell.alignment = align_center
-
-            row_idx = 2
-            for cat, items in sorted(data_dict.items()):
-                # Fila separadora de categoría
-                ws.append([cat.upper()] + [''] * (len(headers) - 1))
-                ws.merge_cells(start_row=row_idx, start_column=1, end_row=row_idx, end_column=len(headers))
-                cell = ws.cell(row=row_idx, column=1)
-                cell.fill = PatternFill(start_color="D3A548", end_color="D3A548", fill_type="solid")
-                cell.font = Font(color="1C2639", bold=True)
-                cell.alignment = align_center
-                for c in range(1, len(headers) + 1):
-                    ws.cell(row=row_idx, column=c).border = thin_border
-                row_idx += 1
-                
-                for item in items:
-                    ws.append(item)
-                    for c_idx in range(len(item)):
-                        cell = ws.cell(row=row_idx, column=c_idx + 1)
-                        cell.fill = fill_data
-                        cell.font = font_data
-                        cell.border = thin_border
-                        if isinstance(item[c_idx], (int, float)):
-                            cell.number_format = '0.00'
-                            cell.alignment = align_center
-                        else:
-                            cell.alignment = align_left
-                    row_idx += 1
-            format_sheet(ws)
-
-        # 1. Productos-precio
-        ws1 = wb.create_sheet(title="Productos-precio")
-        ws1.append(["Producto", "Stock Anterior", "Stock Actual", "Diferencia", "Precio Unitario", "Total", "Coste Diferencia", "Auditado Por"])
-        for cell in ws1[1]:
-            cell.fill = fill_header
-            cell.font = font_header
-            cell.border = thin_border
-            cell.alignment = align_center
-            
-        r_idx = 2
-        for c in comparativa:
-            ws1.append(c)
-            ws1.cell(row=r_idx, column=1).alignment = align_left
-            for col in range(2, 9):
-                ws1.cell(row=r_idx, column=col).alignment = align_center
-            
-            ws1.cell(row=r_idx, column=2).number_format = '0.00'
-            ws1.cell(row=r_idx, column=3).number_format = '0.00'
-            ws1.cell(row=r_idx, column=4).number_format = '0.00'
-            ws1.cell(row=r_idx, column=5).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
-            ws1.cell(row=r_idx, column=6).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
-            ws1.cell(row=r_idx, column=7).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
-            
-            for col in range(1, 9):
-                cell = ws1.cell(row=r_idx, column=col)
-                cell.fill = fill_data
-                cell.font = font_data
-                cell.border = thin_border
-            r_idx += 1
-        format_sheet(ws1)
-
-        # 2. Stock lovo
-        if data_lovo:
-            ws2 = wb.create_sheet(title="Stock lovo")
-            write_category_data(ws2, data_lovo, ["Producto", "TOTAL", "Auditado Por"])
-            
-        # 3. Cristaleria
-        if data_cristaleria:
-            ws3 = wb.create_sheet(title="Cristaleria")
-            write_category_data(ws3, data_cristaleria, ["Producto", "TOTAL", "Auditado Por"])
-            
-        # 4. Stock producciones
-        if data_producciones:
-            ws4 = wb.create_sheet(title="Stock producciones")
-            write_category_data(ws4, data_producciones, ["Producto", "TOTAL", "Auditado Por"])
-
-        # 5. Balance y KPIs
-        from openpyxl.chart import PieChart, BarChart, Reference
+        # Modificar Excel
+        wb = load_workbook(template_file)
+        ignore_words = {"producto", "total", "precio", "articulos", "cristaleria", "producciones", "botellas", "garrafas", "observaciones"}
         
-        ws5 = wb.create_sheet(title="Balance y KPIs")
-        
-        # Calculate aggregations
-        cat_agg = {}
-        total_stock_value = 0.0
-        total_consumption_value = 0.0
-        total_stock_ant_value = 0.0
-        
-        for p, s_ant, s_act, diferencia, precio, coste_total, coste_diferencia, usr in comparativa:
-            total_stock_value += (s_act * precio)
-            total_consumption_value += coste_diferencia
-            
-            total_stock_ant_value += (s_ant * precio)
-            
-            cat = stock_ref[p].get('categoria', 'Sin Categoría') if p in stock_ref else 'Sin Categoría'
-            if cat not in cat_agg:
-                cat_agg[cat] = {'stock_ant': 0.0, 'stock_act': 0.0, 'cons_neto': 0.0}
-            
-            cat_agg[cat]['stock_ant'] += (s_ant * precio)
-            cat_agg[cat]['stock_act'] += (s_act * precio)
-            cat_agg[cat]['cons_neto'] += coste_diferencia
+        for ws in wb.worksheets:
+            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+                for cell in row:
+                    if cell.value and isinstance(cell.value, str):
+                        cell_norm = cell.value.strip().lower()
+                        # Verificar si es un producto conocido y no una palabra a ignorar
+                        if cell_norm not in ignore_words and cell_norm in diccionario:
+                            real_prod = diccionario[cell_norm]
+                            right_cell = ws.cell(row=cell.row, column=cell.column + 1)
+                            # Si la celda derecha está vacía o ya es numérica, sobrescribimos
+                            # Ya que "justo a la derecha" es donde se anotan las cantidades
+                            right_cell.value = stock_act.get(real_prod, 0.0)
 
-        merma_promedio = (total_consumption_value / total_stock_ant_value) if total_stock_ant_value > 0 else 0.0
-        cobertura = (total_stock_value / total_consumption_value) if total_consumption_value > 0 else 0.0
-
-        # Title
-        ws5.merge_cells("A1:D1")
-        cell = ws5["A1"]
-        cell.value = "BALANCE GLOBAL Y KPIs"
-        cell.font = Font(size=14, bold=True, color="D3A548")
-        cell.fill = PatternFill(start_color="1C2639", end_color="1C2639", fill_type="solid")
-        cell.alignment = align_center
-
-        # KPIs
-        kpis = [
-            ("Valor Stock Actual", total_stock_value, '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'),
-            ("Consumo Total", total_consumption_value, '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'),
-            ("Merma Promedio", merma_promedio, '0.00%'),
-            ("Cobertura (Meses)", cobertura, '0.00')
-        ]
-        
-        for i, (kpi_name, kpi_val, kpi_fmt) in enumerate(kpis):
-            header_cell = ws5.cell(row=3, column=i+1)
-            header_cell.value = kpi_name
-            header_cell.font = font_header
-            header_cell.fill = fill_header
-            header_cell.border = thin_border
-            header_cell.alignment = align_center
-            
-            val_cell = ws5.cell(row=4, column=i+1)
-            val_cell.value = kpi_val
-            val_cell.font = font_data
-            val_cell.fill = fill_data
-            val_cell.border = thin_border
-            val_cell.alignment = align_center
-            val_cell.number_format = kpi_fmt
-
-        # Agregación por Categoría Table
-        ws5.cell(row=6, column=1).value = "Agregación por Categoría"
-        ws5.cell(row=6, column=1).font = Font(bold=True)
-        
-        headers_agg = ["Categoría", "Stock Inicial (€)", "Stock Final (€)", "Consumo Neto (€)", "% Total Consumo"]
-        for i, h in enumerate(headers_agg):
-            cell = ws5.cell(row=7, column=i+1)
-            cell.value = h
-            cell.fill = fill_header
-            cell.font = font_header
-            cell.border = thin_border
-            cell.alignment = align_center
-            
-        row_idx = 8
-        cat_list = sorted(cat_agg.keys())
-        for cat in cat_list:
-            c_data = cat_agg[cat]
-            perc = (c_data['cons_neto'] / total_consumption_value) if total_consumption_value > 0 else 0.0
-            
-            ws5.cell(row=row_idx, column=1).value = cat
-            ws5.cell(row=row_idx, column=2).value = c_data['stock_ant']
-            ws5.cell(row=row_idx, column=3).value = c_data['stock_act']
-            ws5.cell(row=row_idx, column=4).value = c_data['cons_neto']
-            ws5.cell(row=row_idx, column=5).value = perc
-            
-            for col in range(1, 6):
-                c = ws5.cell(row=row_idx, column=col)
-                c.fill = fill_data
-                c.font = font_data
-                c.border = thin_border
-                
-            ws5.cell(row=row_idx, column=2).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
-            ws5.cell(row=row_idx, column=3).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
-            ws5.cell(row=row_idx, column=4).number_format = '_(* #,##0.00 €_);_(* (#,##0.00 €);_(* "-"?? €_);_(@_)'
-            ws5.cell(row=row_idx, column=5).number_format = '0.00%'
-            row_idx += 1
-            
-        format_sheet(ws5)
-        
-        # Charts
-        if cat_list:
-            # Pie Chart
-            pie = PieChart()
-            labels = Reference(ws5, min_col=1, min_row=8, max_row=row_idx-1)
-            data = Reference(ws5, min_col=4, min_row=7, max_row=row_idx-1)
-            pie.add_data(data, titles_from_data=True)
-            pie.set_categories(labels)
-            pie.title = "Distribución del Consumo Neto"
-            
-            # Pie labels styling (showing percentages)
-            from openpyxl.chart.label import DataLabelList
-            pie.dataLabels = DataLabelList()
-            pie.dataLabels.showPercent = True
-            
-            ws5.add_chart(pie, "A" + str(row_idx + 2))
-            
-            # Bar Chart
-            bar = BarChart()
-            bar.type = "col"
-            bar.style = 10
-            bar.title = "Comparativa Stock Inicial vs Final"
-            bar.y_axis.title = "Euros (€)"
-            bar.x_axis.title = "Categorías"
-            
-            data_bar = Reference(ws5, min_col=2, max_col=3, min_row=7, max_row=row_idx-1)
-            cats_bar = Reference(ws5, min_col=1, min_row=8, max_row=row_idx-1)
-            
-            bar.add_data(data_bar, titles_from_data=True)
-            bar.set_categories(cats_bar)
-            bar.shape = 4
-            
-            ws5.add_chart(bar, "H7")
-
-        if len(wb.sheetnames) == 0:
-            ws = wb.create_sheet(title="Vacio")
-            ws.append(["No hay registros hoy"])
-                
         temp_file = f"Inventario_Cierre_{fecha_archivo}.xlsx"
         wb.save(temp_file)
         return FileResponse(path=temp_file, filename=temp_file, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
