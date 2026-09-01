@@ -591,14 +591,26 @@ async function downloadExcel() {
 
 
 async function sendToServer(categoria, producto, cantidad, fueCorregido = false) {
-    const payloadStr = `${categoria}|${producto}|${cantidad}`;
+    let cantidadFinal = cantidad;
+    let conversionInfo = "";
+    
+    // Lógica para detectar Garrafas y convertir a mililitros
+    const match = producto.match(/\b(\d+)\s*L\b/i);
+    if (match && (categoria.toLowerCase().includes('produccion') || categoria.toLowerCase().includes('garrafa') || producto.toLowerCase().includes('garrafa'))) {
+        const litros = parseInt(match[1]);
+        cantidadFinal = cantidad * litros * 1000;
+        conversionInfo = ` (equivale a ${cantidadFinal} ml)`;
+    }
+
+    const payloadStr = `${categoria}|${producto}|${cantidadFinal}`;
     const now = Date.now();
     if (payloadStr === lastSentPayload && (now - lastSentTime) < 4000) return;
     lastSentPayload = payloadStr;
     lastSentTime = now;
     
-    liveText.textContent = `Guardando: ${cantidad} de ${producto}...`;
-    const payload = { categoria: categoria, producto: producto, cantidad_dictada: cantidad, usuario: localStorage.getItem('usuario_lovo_nombre') || "Desconocido" };
+    liveText.textContent = `Guardando: ${cantidad} de ${producto}${conversionInfo}...`;
+    const payload = { categoria: categoria, producto: producto, cantidad_dictada: cantidadFinal, usuario: localStorage.getItem('usuario_lovo_nombre') || "Desconocido" };
+
 
     try {
         const response = await fetch(`${SERVER_URL}/api/registro`, {
@@ -1687,6 +1699,53 @@ if(btnPedido) {
             console.error(e);
             alert('Error generando el pedido');
         }
+    });
+}
+
+// --- Lógica PWA / Instalación de la App ---
+let deferredPrompt;
+const installAppBtn = document.getElementById('install-app-btn');
+
+// Mostrar el botón siempre para ofrecer al menos la alternativa manual
+if (installAppBtn) {
+    installAppBtn.classList.remove('hidden');
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevenir que aparezca el mini-infobar por defecto en móviles
+    e.preventDefault();
+    // Guardar el evento para dispararlo luego
+    deferredPrompt = e;
+});
+
+if (installAppBtn) {
+    installAppBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            // Mostrar el prompt de instalación nativo
+            deferredPrompt.prompt();
+            // Esperar a que el usuario responda
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            
+            // Ya se usó el prompt, limpiarlo
+            deferredPrompt = null;
+        } else {
+            // Fallback para iOS o conexiones HTTP en red local
+            alert("Para instalar la app:\n\n1. En iPhone/iPad (Safari): Toca el botón 'Compartir' (el cuadrado con flecha hacia arriba) y selecciona 'Añadir a la pantalla de inicio'.\n\n2. En Android (Chrome): Toca los 3 puntos arriba a la derecha y selecciona 'Añadir a la pantalla de inicio' o 'Instalar aplicación'.");
+        }
+    });
+}
+
+window.addEventListener('appinstalled', () => {
+    console.log('PWA fue instalada exitosamente');
+});
+
+// Registrar el Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker Registrado!', reg))
+            .catch(err => console.error('Error al registrar Service Worker', err));
     });
 }
 
