@@ -541,8 +541,7 @@ async function fetchInventarioHoy() {
             // Re-render POS grid if active to update quantities
             const btnCaja = document.getElementById('mode-caja-btn');
             if (btnCaja && btnCaja.classList.contains('active')) {
-                const cat = document.getElementById('category-dropdown');
-                if(cat && window.renderPosGrid) window.renderPosGrid(cat.value);
+                if (typeof fetchPosData === 'function') fetchPosData();
             }
         }
     } catch (error) {}
@@ -1781,6 +1780,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (response.ok) {
                 const data = await response.json();
                 posData = data.pos_data || {};
+                window.posStockBase = data.stock_base || {};
                 if (btnCaja && btnCaja.classList.contains('active')) {
                     const cat = document.getElementById('category-dropdown');
                     if(cat) renderPosGrid(cat.value);
@@ -1793,6 +1793,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Fetch initially
     setTimeout(fetchPosData, 1000);
+    window.fetchPosData = fetchPosData;
     
     // Update POS when category changes
     const catDropdown = document.getElementById('category-dropdown');
@@ -1821,29 +1822,8 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (catLower.includes('garrafa')) imgName = 'garrafa_gen.jpg';
         else imgName = 'licor_gen.jpg';
 
-        // Calcular totales de hoy
-        const productTotals = {};
-        if (typeof recentItems !== 'undefined') {
-            recentItems.forEach(item => {
-                const p = (item.producto || '').toLowerCase();
-                let b = parseFloat(item.botellas_llenas) || 0;
-                let rStr = item.restante_porcentaje;
-                let rVal = 0;
-                if (rStr && rStr !== '-') {
-                    let rStrClean = String(rStr).trim();
-                    if (rStrClean.includes('%')) {
-                        rVal = parseFloat(rStrClean.replace('%','')) / 100;
-                    } else {
-                        rVal = parseFloat(rStrClean);
-                        if (rVal > 1) rVal = rVal / 100;
-                    }
-                }
-                productTotals[p] = (productTotals[p] || 0) + (b + rVal);
-            });
-        }
-
         productos.forEach(prod => {
-            let totalQty = productTotals[prod.toLowerCase()] || 0;
+            let totalQty = (window.posStockBase || {})[prod.toLowerCase()] || 0;
             totalQty = Math.round(totalQty * 1000) / 1000; // redondear para evitar errores float
 
             const card = document.createElement('div');
