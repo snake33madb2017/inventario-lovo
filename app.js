@@ -1754,16 +1754,25 @@ document.addEventListener('DOMContentLoaded', () => {
         if(contTeclado) contTeclado.classList.add('hidden');
         if(contCaja) contCaja.classList.add('hidden');
         
+        const recentItems = document.querySelector('.recent-items-section');
+        const recognitionBox = document.querySelector('.recognition-box');
+        
         if (mode === 'voz') {
             if(btnVoz) btnVoz.classList.add('active');
             if(contVoz) contVoz.classList.remove('hidden');
+            if(recentItems) recentItems.style.display = '';
+            if(recognitionBox) recognitionBox.style.display = '';
         } else if (mode === 'teclado') {
             if(btnTeclado) btnTeclado.classList.add('active');
             if(contTeclado) contTeclado.classList.remove('hidden');
+            if(recentItems) recentItems.style.display = '';
+            if(recognitionBox) recognitionBox.style.display = '';
             setTimeout(() => document.getElementById('manual-input').focus(), 100);
         } else if (mode === 'caja') {
             if(btnCaja) btnCaja.classList.add('active');
             if(contCaja) contCaja.classList.remove('hidden');
+            if(recentItems) recentItems.style.display = 'none';
+            if(recognitionBox) recognitionBox.style.display = 'none';
             const cat = document.getElementById('category-dropdown');
             if(cat) renderPosGrid(cat.value);
         }

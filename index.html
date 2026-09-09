@@ -94,6 +94,8 @@
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 4px;">
                     <div style="display: flex; gap: 8px;">
+                        <button id="download-btn" class="download-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; background-color: #10b981; color: white;">Excel</button>
+                        <button id="clear-month-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #ef4444; border-color: #ef4444;" title="Borrar mes">Borrar</button>
                         <button id="laboratorio-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #10b981; border-color: #10b981;">
                             🧪 Producción
                         </button>
@@ -129,7 +131,7 @@
         <main>
             <div class="mode-switcher" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
                 <button id="mode-voz-btn" class="mode-btn active">🎙️ Voz</button>
-                <button id="mode-teclado-btn" class="mode-btn">⌨️ Teclado</button>
+                <button id="mode-teclado-btn" class="mode-btn" style="display: none;">⌨️ Teclado</button>
                 <button id="mode-caja-btn" class="mode-btn">📱 Caja</button>
             </div>
 
@@ -217,13 +219,6 @@
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
                         <button id="undo-btn" class="undo-btn" disabled>
                             Deshacer
-                        </button>
-
-                        <button id="download-btn" class="download-btn hidden">
-                            Excel
-                        </button>
-                        <button id="clear-month-btn" class="undo-btn hidden" style="color: #ef4444; border-color: #ef4444;" title="Borrar todo el mes">
-                            Borrar
                         </button>
                     </div>
                 </div>
