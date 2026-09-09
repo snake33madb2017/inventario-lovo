@@ -375,15 +375,19 @@ function setupSpeechRecognition() {
     
     recognition.onresult = (event) => {
         let transcript = '';
+        let isFinal = false;
         for (let i = 0; i < event.results.length; i++) {
             transcript += event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                isFinal = true;
+            }
         }
         
         currentTranscript = transcript;
         liveText.textContent = currentTranscript;
         
-        // Si el navegador ya detectó que es el final de la frase (isFinal = true)
-        if (event.results[0] && event.results[0].isFinal) {
+        // Si el navegador ya detectó que es el final de la frase
+        if (isFinal) {
             clearTimeout(speechTimeout);
             const finalText = currentTranscript.trim().toLowerCase();
             currentTranscript = "";
