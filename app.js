@@ -120,14 +120,32 @@ async function init() {
     if(manualForm) {
         manualForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const text = manualInput.value;
-            if(text.trim()) {
-                liveText.textContent = "Procesando manual: " + text;
-                processVoiceCommand(text);
+            const val = manualInput.value.trim();
+            if(val) {
+                processVoiceCommand(val);
                 manualInput.value = '';
                 manualForm.classList.add('hidden');
                 manualForm.style.display = 'none';
             }
+        });
+
+        // Event listener for quick quantity buttons
+        const qtyBtns = document.querySelectorAll('.qty-btn');
+        qtyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const qty = btn.getAttribute('data-qty');
+                // Extract product name if quantity already present
+                let currentVal = manualInput.value.trim();
+                let productOnly = currentVal;
+                const regex = /^(\d+(?:\.\d+)?)\s+(.+)$/;
+                const match = currentVal.match(regex);
+                if (match) {
+                    productOnly = match[2];
+                }
+                // Prepend the new quantity
+                manualInput.value = qty + (productOnly ? " " + productOnly : " ");
+                manualInput.focus();
+            });
         });
     }
     const searchInput = document.getElementById('search-input');

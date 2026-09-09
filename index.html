@@ -149,9 +149,20 @@
                 <p id="mic-status-text">Toca para hablar</p>
                 <button id="manual-btn" class="undo-btn" style="margin-top: 10px; border-color: var(--primary-color); color: var(--primary-color);">⌨️ Teclado Manual</button>
                 
-                <form id="manual-form" class="hidden" style="margin-top: 15px; display: flex; gap: 8px; width: 100%;">
-                    <input type="text" id="manual-input" placeholder="Ej: 1.5 Brugal" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" autocomplete="off">
-                    <button type="submit" class="download-btn">Enviar</button>
+                <form id="manual-form" class="hidden" style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                    <div id="quick-qty-container" style="display: flex; gap: 5px; justify-content: center; flex-wrap: wrap;">
+                        <button type="button" class="qty-btn" data-qty="0.1">0.1</button>
+                        <button type="button" class="qty-btn" data-qty="0.5">0.5</button>
+                        <button type="button" class="qty-btn" data-qty="1">1</button>
+                        <button type="button" class="qty-btn" data-qty="1.5">1.5</button>
+                        <button type="button" class="qty-btn" data-qty="2">2</button>
+                        <button type="button" class="qty-btn" data-qty="2.5">2.5</button>
+                        <button type="button" class="qty-btn" data-qty="3">3</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; width: 100%;">
+                        <input type="text" id="manual-input" placeholder="Ej: 1.5 Brugal (o usa botones arriba)" style="flex: 1; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;" autocomplete="off">
+                        <button type="submit" class="download-btn">Enviar</button>
+                    </div>
                 </form>
             </div>
 
