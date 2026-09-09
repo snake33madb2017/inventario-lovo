@@ -908,9 +908,9 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             fecha_busqueda = fecha
             fecha_archivo = fecha.replace("/", "-")
             
-        template_file = "STOCK JULIO.xlsx"
+        template_file = "Plantilla_Inventario.xlsx"
         if not os.path.exists(template_file):
-            raise HTTPException(status_code=404, detail="Plantilla STOCK JULIO.xlsx no encontrada")
+            raise HTTPException(status_code=404, detail="Plantilla_Inventario.xlsx no encontrada")
             
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -964,7 +964,7 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         # Modificar Excel
         from openpyxl.comments import Comment
         wb = load_workbook(template_file)
-        ignore_words = {"producto", "total", "precio", "articulos", "cristaleria", "producciones", "botellas", "garrafas", "observaciones"}
+        ignore_words = {"producto", "total", "precio", "articulos", "cristaleria", "producciones", "botellas", "garrafas", "observaciones", "categoría", "usuario", "cantidad"}
         
         for ws in wb.worksheets:
             for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
@@ -974,16 +974,16 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
                         if cell_norm not in ignore_words and cell_norm in diccionario:
                             real_prod = diccionario[cell_norm]
                             right_cell = ws.cell(row=cell.row, column=cell.column + 1)
-                            # Si la celda derecha está vacía o ya es numérica, sobrescribimos
-                            # Ya que "justo a la derecha" es donde se anotan las cantidades
-                            # IMPORTANT: No sobrescribir fórmulas
+                            
+                            # Escribir cantidad en columna C
                             if not (isinstance(right_cell.value, str) and right_cell.value.startswith('=')):
                                 right_cell.value = stock_act.get(real_prod, 0.0)
                             
-                            # Escribir auditor como comentario en lugar de una columna separada
+                            # Escribir auditor en columna D (Usuario)
+                            user_cell = ws.cell(row=cell.row, column=cell.column + 2)
                             if real_prod in auditors and auditors[real_prod]:
                                 auditor_names = ", ".join(auditors[real_prod])
-                                right_cell.comment = Comment(f"Contado por: {auditor_names}", "Sistema")
+                                user_cell.value = auditor_names
 
         temp_file = f"Inventario_Cierre_{fecha_archivo}.xlsx"
         wb.save(temp_file)
