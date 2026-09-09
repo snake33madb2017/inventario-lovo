@@ -1,4 +1,4 @@
-const CACHE_NAME = 'inventario-lovo-v15';
+const CACHE_NAME = 'inventario-lovo-v16';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
