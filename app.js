@@ -1624,58 +1624,232 @@ function renderCharts(cats, top5) {
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const target = btn.dataset.tab;
-        if(target === 'tab-compras') fetchNotasCompra();
+        if(target === 'tab-compras') loadCatalogo();
         if(target === 'tab-analitica') loadAnalitica();
     });
 });
 
-// --- Notas de Compra ---
-const btnGuardarNotas = document.getElementById('btn-guardar-notas');
-const notasInput = document.getElementById('notas-compra-input');
-
-async function fetchNotasCompra() {
-    try {
-        const response = await fetch(SERVER_URL + '/api/notas_compra', { headers: getAuthHeaders() });
-        if(response.ok) {
-            const data = await response.json();
-            if(notasInput) notasInput.value = data.texto || "";
-        }
-    } catch(e) { console.error("Error fetching notas", e); }
-}
-
-if (btnGuardarNotas && notasInput) {
-    btnGuardarNotas.addEventListener('click', async () => {
-        const texto = notasInput.value;
-        const btnOriginalText = btnGuardarNotas.textContent;
-        btnGuardarNotas.textContent = "Guardando...";
-        btnGuardarNotas.disabled = true;
+const btnPedido = document.getElementById('btn-generar-pedido');
+if(btnPedido) {
+    btnPedido.addEventListener('click', async () => {
+        if(!catalogoData.length) return alert('Cargando catálogo, espera un momento...');
         
         try {
-            const res = await fetch(SERVER_URL + '/api/notas_compra', {
-                method: 'POST',
-                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ texto: texto })
+            const response = await fetch(SERVER_URL + '/api/inventario/comparativa', { headers: getAuthHeaders() });
+            const data = await response.json();
+            
+            let pedidoText = "🛒 *LISTA DE LA COMPRA - LOVO*\n\n";
+            let itemsCount = 0;
+            
+            data.comparativa.forEach(c => {
+                const catItem = catalogoData.find(x => x.producto === c.producto);
+                const ideal = catItem ? catItem.stock_ideal : 0;
+                
+                if(ideal > 0 && c.stock_actual < ideal) {
+                    const aPedir = Math.ceil(ideal - c.stock_actual);
+                    pedidoText += `- ${aPedir}x ${c.producto}\n`;
+                    itemsCount++;
+                }
             });
-            if(res.ok) {
-                btnGuardarNotas.textContent = "¡Guardado!";
-                btnGuardarNotas.style.backgroundColor = "#10b981";
-            } else {
-                btnGuardarNotas.textContent = "Error al guardar";
-                btnGuardarNotas.style.backgroundColor = "#ef4444";
+            
+            if(itemsCount === 0) {
+                alert('¡Todo perfecto! No necesitas pedir nada, el stock actual supera al ideal en todos los productos configurados.');
+                return;
             }
+            
+            const modalHtml = `
+                <div style="padding: 20px;">
+                    <h3 style="color:var(--primary-color); margin-bottom: 15px;">Lista Generada</h3>
+                    <textarea style="width:100%; height:200px; background:rgba(0,0,0,0.5); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:10px;" id="pedido-textarea" readonly>${pedidoText}</textarea>
+                    <button onclick="navigator.clipboard.writeText(document.getElementById('pedido-textarea').value); alert('¡Copiado al portapapeles!');" style="width:100%; margin-top:15px; padding:12px; background:var(--primary-color); color:#000; font-weight:bold; border-radius:8px; cursor:pointer; border:none;">📋 Copiar para WhatsApp</button>
+                    <button onclick="document.getElementById('modal-ajuste-manual').classList.add('hidden')" style="width:100%; margin-top:10px; padding:12px; background:transparent; color:#aaa; border:none; cursor:pointer;">Cerrar</button>
+                </div>
+            `;
+            
+            const modal = document.getElementById('modal-ajuste-manual');
+            const content = modal.querySelector('.modal-content');
+            
+            const originalContent = content.innerHTML;
+            content.innerHTML = modalHtml;
+            modal.classList.remove('hidden');
+            
+            const closeBtn = content.querySelector('button:last-child');
+            closeBtn.onclick = () => {
+                modal.classList.add('hidden');
+                setTimeout(() => { content.innerHTML = originalContent; }, 300);
+            };
+            
         } catch(e) {
-            btnGuardarNotas.textContent = "Error de red";
-            btnGuardarNotas.style.backgroundColor = "#ef4444";
+            console.error(e);
+            alert('Error generando el pedido');
         }
-        
-        setTimeout(() => {
-            btnGuardarNotas.textContent = btnOriginalText;
-            btnGuardarNotas.disabled = false;
-            btnGuardarNotas.style.backgroundColor = ""; // reset to default css
-        }, 2000);
     });
 }
 
+// --- Lógica PWA / Instalación de la App ---
+let deferredPrompt;
+const installAppBtn = document.getElementById('install-app-btn');
+
+// Mostrar el botón siempre para ofrecer al menos la alternativa manual
+if (installAppBtn) {
+    installAppBtn.classList.remove('hidden');
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevenir que aparezca el mini-infobar por defecto en móviles
+    e.preventDefault();
+    // Guardar el evento para dispararlo luego
+    deferredPrompt = e;
+});
+
+if (installAppBtn) {
+    installAppBtn.addEventListener('click', async () => {
+        if (deferredPrompt) {
+            // Mostrar el prompt de instalación nativo
+            deferredPrompt.prompt();
+            // Esperar a que el usuario responda
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`User response to the install prompt: ${outcome}`);
+            
+            // Ya se usó el prompt, limpiarlo
+            deferredPrompt = null;
+        } else {
+            // Fallback para iOS o conexiones HTTP en red local
+            alert("Para instalar la app:\n\n1. En iPhone/iPad (Safari): Toca el botón 'Compartir' (el cuadrado con flecha hacia arriba) y selecciona 'Añadir a la pantalla de inicio'.\n\n2. En Android (Chrome): Toca los 3 puntos arriba a la derecha y selecciona 'Añadir a la pantalla de inicio' o 'Instalar aplicación'.");
+        }
+    });
+}
+
+window.addEventListener('appinstalled', () => {
+    console.log('PWA fue instalada exitosamente');
+});
+
+// Registrar el Service Worker
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker Registrado!', reg))
+            .catch(err => console.error('Error al registrar Service Worker', err));
+    });
+}
+
+
+// --- POS / MODO CAJA LOGIC ---
+let posData = {};
+let currentPosProduct = '';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnVoz = document.getElementById('mode-voz-btn');
+    const btnTeclado = document.getElementById('mode-teclado-btn');
+    const btnCaja = document.getElementById('mode-caja-btn');
+    const contVoz = document.getElementById('mode-voz-container');
+    const contTeclado = document.getElementById('mode-teclado-container');
+    const contCaja = document.getElementById('mode-caja-container');
+    
+    function switchMode(mode) {
+        if(btnVoz) btnVoz.classList.remove('active');
+        if(btnTeclado) btnTeclado.classList.remove('active');
+        if(btnCaja) btnCaja.classList.remove('active');
+        if(contVoz) contVoz.classList.add('hidden');
+        if(contTeclado) contTeclado.classList.add('hidden');
+        if(contCaja) contCaja.classList.add('hidden');
+        
+        const recentItems = document.querySelector('.recent-items-section');
+        const recognitionBox = document.querySelector('.recognition-box');
+        
+        if (mode === 'voz') {
+            if(btnVoz) btnVoz.classList.add('active');
+            if(contVoz) contVoz.classList.remove('hidden');
+            if(recentItems) recentItems.style.display = '';
+            if(recognitionBox) recognitionBox.style.display = '';
+        } else if (mode === 'teclado') {
+            if(btnTeclado) btnTeclado.classList.add('active');
+            if(contTeclado) contTeclado.classList.remove('hidden');
+            if(recentItems) recentItems.style.display = '';
+            if(recognitionBox) recognitionBox.style.display = '';
+            setTimeout(() => document.getElementById('manual-input').focus(), 100);
+        } else if (mode === 'caja') {
+            if(btnCaja) btnCaja.classList.add('active');
+            if(contCaja) contCaja.classList.remove('hidden');
+            if(recentItems) recentItems.style.display = 'none';
+            if(recognitionBox) recognitionBox.style.display = 'none';
+            const cat = document.getElementById('category-dropdown');
+            if(cat) renderPosGrid(cat.value);
+        }
+    }
+    
+    if (btnVoz) btnVoz.addEventListener('click', () => switchMode('voz'));
+    if (btnTeclado) btnTeclado.addEventListener('click', () => switchMode('teclado'));
+    if (btnCaja) btnCaja.addEventListener('click', () => switchMode('caja'));
+    
+    // Fetch POS Data
+    async function fetchPosData() {
+        try {
+            const response = await fetch(`${SERVER_URL}/api/productos/pos`, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                posData = data.pos_data || {};
+                window.posStockBase = data.stock_base || {};
+                if (btnCaja && btnCaja.classList.contains('active')) {
+                    const cat = document.getElementById('category-dropdown');
+                    if(cat) renderPosGrid(cat.value);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching POS data', error);
+        }
+    }
+    
+    // Fetch initially
+    setTimeout(fetchPosData, 1000);
+    window.fetchPosData = fetchPosData;
+    
+    // Update POS when category changes
+    const catDropdown = document.getElementById('category-dropdown');
+    if (catDropdown) {
+        catDropdown.addEventListener('change', () => {
+            if (btnCaja && btnCaja.classList.contains('active')) {
+                renderPosGrid(catDropdown.value);
+            }
+        });
+    }
+    
+    window.renderPosGrid = function(categoria) {
+        const grid = document.getElementById('pos-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const productos = posData[categoria] || [];
+        
+        if (productos.length === 0) {
+            grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column: 1 / -1;">No hay productos en esta categoría.</p>';
+            return;
+        }
+        
+        let imgName = 'jack_daniels.jpg';
+        const catLower = categoria.toLowerCase();
+        if (catLower.includes('cristal')) imgName = 'cristaleria_gen.jpg';
+        else if (catLower.includes('garrafa')) imgName = 'garrafa_gen.jpg';
+        else imgName = 'licor_gen.jpg';
+
+        productos.forEach(prod => {
+            let totalQty = (window.posStockBase || {})[prod.toLowerCase()] || 0;
+            totalQty = Math.round(totalQty * 1000) / 1000; // redondear para evitar errores float
+
+            const card = document.createElement('div');
+            card.className = 'pos-card';
+            card.innerHTML = `
+                <img src="${imgName}" alt="${prod}" onerror="this.src='logo_lovo.png'">
+                <span class="pos-title">${prod}</span>
+                <div style="background: rgba(0,255,0,0.15); color: #4ade80; width: 90%; padding: 4px 0; border-radius: 6px; text-align: center; font-size: 0.85rem; margin-top: 5px; font-weight: bold; border: 1px solid rgba(74, 222, 128, 0.3);">
+                    Cant: ${totalQty > 0 ? totalQty : 0}
+                </div>
+            `;
+            card.addEventListener('click', () => openPosModal(prod));
+            grid.appendChild(card);
+        });
+    };
+    
+    // POS Modal Logic
     const posModal = document.getElementById('pos-modal');
     const posModalTitle = document.getElementById('pos-modal-title');
     const posModalCancel = document.getElementById('pos-modal-cancel');
