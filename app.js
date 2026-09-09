@@ -538,6 +538,12 @@ async function fetchInventarioHoy() {
             recentItems = data.registros || [];
             renderList();
             updateProgressBar();
+            // Re-render POS grid if active to update quantities
+            const btnCaja = document.getElementById('mode-caja-btn');
+            if (btnCaja && btnCaja.classList.contains('active')) {
+                const cat = document.getElementById('category-dropdown');
+                if(cat && window.renderPosGrid) window.renderPosGrid(cat.value);
+            }
         }
     } catch (error) {}
 }
@@ -1815,12 +1821,39 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (catLower.includes('garrafa')) imgName = 'garrafa_gen.jpg';
         else imgName = 'licor_gen.jpg';
 
+        // Calcular totales de hoy
+        const productTotals = {};
+        if (typeof recentItems !== 'undefined') {
+            recentItems.forEach(item => {
+                const p = (item.producto || '').toLowerCase();
+                let b = parseFloat(item.botellas_llenas) || 0;
+                let rStr = item.restante_porcentaje;
+                let rVal = 0;
+                if (rStr && rStr !== '-') {
+                    let rStrClean = String(rStr).trim();
+                    if (rStrClean.includes('%')) {
+                        rVal = parseFloat(rStrClean.replace('%','')) / 100;
+                    } else {
+                        rVal = parseFloat(rStrClean);
+                        if (rVal > 1) rVal = rVal / 100;
+                    }
+                }
+                productTotals[p] = (productTotals[p] || 0) + (b + rVal);
+            });
+        }
+
         productos.forEach(prod => {
+            let totalQty = productTotals[prod.toLowerCase()] || 0;
+            totalQty = Math.round(totalQty * 1000) / 1000; // redondear para evitar errores float
+
             const card = document.createElement('div');
             card.className = 'pos-card';
             card.innerHTML = `
                 <img src="${imgName}" alt="${prod}" onerror="this.src='logo_lovo.png'">
                 <span class="pos-title">${prod}</span>
+                <div style="background: rgba(0,255,0,0.15); color: #4ade80; width: 90%; padding: 4px 0; border-radius: 6px; text-align: center; font-size: 0.85rem; margin-top: 5px; font-weight: bold; border: 1px solid rgba(74, 222, 128, 0.3);">
+                    Cant: ${totalQty > 0 ? totalQty : 0}
+                </div>
             `;
             card.addEventListener('click', () => openPosModal(prod));
             grid.appendChild(card);
