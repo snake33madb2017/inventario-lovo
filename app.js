@@ -1809,11 +1809,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
+        let imgName = 'jack_daniels.jpg';
+        const catLower = categoria.toLowerCase();
+        if (catLower.includes('cristal')) imgName = 'cristaleria_gen.jpg';
+        else if (catLower.includes('garrafa')) imgName = 'garrafa_gen.jpg';
+        else imgName = 'licor_gen.jpg';
+
         productos.forEach(prod => {
             const card = document.createElement('div');
             card.className = 'pos-card';
             card.innerHTML = `
-                <img src="jack_daniels.jpg" alt="${prod}" onerror="this.src='logo_lovo.png'">
+                <img src="${imgName}" alt="${prod}" onerror="this.src='logo_lovo.png'">
                 <span class="pos-title">${prod}</span>
             `;
             card.addEventListener('click', () => openPosModal(prod));
