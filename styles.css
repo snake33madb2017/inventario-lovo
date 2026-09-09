@@ -1147,3 +1147,113 @@ main {
 }
 
 
+
+/* POS / Modes Styles */
+.mode-switcher {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 5px;
+    border-radius: 12px;
+    display: inline-flex;
+}
+.mode-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.mode-btn.active {
+    background: var(--primary-color);
+    color: #000;
+}
+.mode-container.hidden {
+    display: none;
+}
+
+.pos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 15px;
+    padding: 10px 0;
+}
+.pos-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: 10px;
+}
+.pos-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary-color);
+}
+.pos-card img {
+    width: 100%;
+    height: 110px;
+    object-fit: cover;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.pos-card .pos-title {
+    font-size: 0.8rem;
+    color: #fff;
+    text-align: center;
+    padding: 0 5px;
+    line-height: 1.2;
+    font-weight: 600;
+}
+
+.pos-modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+.pos-modal.hidden {
+    display: none;
+}
+.pos-modal-content {
+    background: #1a1a1a;
+    border: 1px solid rgba(255,255,255,0.2);
+    padding: 20px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.pos-modal-qty-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+.pos-qty-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 12px 0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.pos-qty-btn:hover {
+    background: var(--primary-color);
+    color: #000;
+}

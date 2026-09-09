@@ -1728,3 +1728,122 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+
+// --- POS / MODO CAJA LOGIC ---
+let posData = {};
+let currentPosProduct = '';
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnVoz = document.getElementById('mode-voz-btn');
+    const btnTeclado = document.getElementById('mode-teclado-btn');
+    const btnCaja = document.getElementById('mode-caja-btn');
+    const contVoz = document.getElementById('mode-voz-container');
+    const contTeclado = document.getElementById('mode-teclado-container');
+    const contCaja = document.getElementById('mode-caja-container');
+    
+    function switchMode(mode) {
+        if(btnVoz) btnVoz.classList.remove('active');
+        if(btnTeclado) btnTeclado.classList.remove('active');
+        if(btnCaja) btnCaja.classList.remove('active');
+        if(contVoz) contVoz.classList.add('hidden');
+        if(contTeclado) contTeclado.classList.add('hidden');
+        if(contCaja) contCaja.classList.add('hidden');
+        
+        if (mode === 'voz') {
+            if(btnVoz) btnVoz.classList.add('active');
+            if(contVoz) contVoz.classList.remove('hidden');
+        } else if (mode === 'teclado') {
+            if(btnTeclado) btnTeclado.classList.add('active');
+            if(contTeclado) contTeclado.classList.remove('hidden');
+            setTimeout(() => document.getElementById('manual-input').focus(), 100);
+        } else if (mode === 'caja') {
+            if(btnCaja) btnCaja.classList.add('active');
+            if(contCaja) contCaja.classList.remove('hidden');
+            const cat = document.getElementById('category-dropdown');
+            if(cat) renderPosGrid(cat.value);
+        }
+    }
+    
+    if (btnVoz) btnVoz.addEventListener('click', () => switchMode('voz'));
+    if (btnTeclado) btnTeclado.addEventListener('click', () => switchMode('teclado'));
+    if (btnCaja) btnCaja.addEventListener('click', () => switchMode('caja'));
+    
+    // Fetch POS Data
+    async function fetchPosData() {
+        try {
+            const response = await fetch(`${SERVER_URL}/api/productos/pos`, { headers: getAuthHeaders() });
+            if (response.ok) {
+                const data = await response.json();
+                posData = data.pos_data || {};
+                if (btnCaja && btnCaja.classList.contains('active')) {
+                    const cat = document.getElementById('category-dropdown');
+                    if(cat) renderPosGrid(cat.value);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching POS data', error);
+        }
+    }
+    
+    // Fetch initially
+    setTimeout(fetchPosData, 1000);
+    
+    // Update POS when category changes
+    const catDropdown = document.getElementById('category-dropdown');
+    if (catDropdown) {
+        catDropdown.addEventListener('change', () => {
+            if (btnCaja && btnCaja.classList.contains('active')) {
+                renderPosGrid(catDropdown.value);
+            }
+        });
+    }
+    
+    window.renderPosGrid = function(categoria) {
+        const grid = document.getElementById('pos-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const productos = posData[categoria] || [];
+        
+        if (productos.length === 0) {
+            grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column: 1 / -1;">No hay productos en esta categoría.</p>';
+            return;
+        }
+        
+        productos.forEach(prod => {
+            const card = document.createElement('div');
+            card.className = 'pos-card';
+            card.innerHTML = `
+                <img src="jack_daniels.jpg" alt="${prod}" onerror="this.src='logo_lovo.png'">
+                <span class="pos-title">${prod}</span>
+            `;
+            card.addEventListener('click', () => openPosModal(prod));
+            grid.appendChild(card);
+        });
+    };
+    
+    // POS Modal Logic
+    const posModal = document.getElementById('pos-modal');
+    const posModalTitle = document.getElementById('pos-modal-title');
+    const posModalCancel = document.getElementById('pos-modal-cancel');
+    const posQtyBtns = document.querySelectorAll('.pos-qty-btn');
+    
+    window.openPosModal = function(producto) {
+        currentPosProduct = producto;
+        if(posModalTitle) posModalTitle.textContent = producto;
+        if(posModal) posModal.classList.remove('hidden');
+    };
+    
+    if (posModalCancel) posModalCancel.addEventListener('click', () => posModal.classList.add('hidden'));
+    
+    posQtyBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const qty = parseFloat(btn.getAttribute('data-qty'));
+            const cat = document.getElementById('category-dropdown').value;
+            // Use existing sendToServer function from app.js
+            if (typeof sendToServer === 'function') {
+                sendToServer(cat, currentPosProduct, qty, false);
+            }
+            if(posModal) posModal.classList.add('hidden');
+        });
+    });
+});

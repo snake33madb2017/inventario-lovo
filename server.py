@@ -730,6 +730,30 @@ def obtener_productos_historicos(user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/productos/pos")
+def obtener_productos_pos(user: dict = Depends(get_current_user)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Query distinct categories and products
+        cursor.execute("SELECT DISTINCT categoria, producto FROM registros WHERE categoria IS NOT NULL AND categoria != '' ORDER BY categoria, producto")
+        rows = cursor.fetchall()
+        conn.close()
+        
+        pos_data = {}
+        for r in rows:
+            cat = r["categoria"]
+            prod = r["producto"]
+            if not cat or not prod: continue
+            if cat not in pos_data:
+                pos_data[cat] = []
+            if prod not in pos_data[cat]:
+                pos_data[cat].append(prod)
+                
+        return {"pos_data": pos_data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/inventario/fechas")
 def obtener_fechas_historial(user: dict = Depends(check_is_admin)):
     try:
