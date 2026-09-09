@@ -187,19 +187,22 @@
             <div id="pos-modal" class="pos-modal hidden">
                 <div class="pos-modal-content">
                     <h3 id="pos-modal-title" style="margin-top:0; color:var(--primary-color);">Producto</h3>
-                    <p style="margin-top:-10px; margin-bottom:15px; font-size:0.9rem; color:var(--text-muted);">Selecciona la cantidad</p>
-                    <div class="pos-modal-qty-container">
-                        <button type="button" class="pos-qty-btn" data-qty="0.1">0.1</button>
-                        <button type="button" class="pos-qty-btn" data-qty="0.25">0.25</button>
-                        <button type="button" class="pos-qty-btn" data-qty="0.5">0.5</button>
-                        <button type="button" class="pos-qty-btn" data-qty="0.75">0.75</button>
-                        <button type="button" class="pos-qty-btn" data-qty="1">1</button>
-                        <button type="button" class="pos-qty-btn" data-qty="1.5">1.5</button>
-                        <button type="button" class="pos-qty-btn" data-qty="2">2</button>
-                        <button type="button" class="pos-qty-btn" data-qty="3">3</button>
+                    <p style="margin-top:-10px; margin-bottom:15px; font-size:0.9rem; color:var(--text-muted);">Ajusta la cantidad total</p>
+                    
+                    <div style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-bottom: 20px;">
+                        <input type="number" id="pos-modal-input" step="0.1" min="0" value="0" style="font-size: 2rem; width: 100px; text-align: center; border: 2px solid var(--border-color); border-radius: 8px; padding: 10px; background: var(--bg-card); color: var(--text-color);">
                     </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                        <button type="button" class="pos-calc-btn" data-calc="-1">-1</button>
+                        <button type="button" class="pos-calc-btn" data-calc="-0.5">-0.5</button>
+                        <button type="button" class="pos-calc-btn" data-calc="+0.5">+0.5</button>
+                        <button type="button" class="pos-calc-btn" data-calc="+1">+1</button>
+                    </div>
+                    
                     <div style="display: flex; gap: 10px; margin-top: 15px;">
                         <button id="pos-modal-cancel" class="undo-btn" style="flex: 1; border-color: #ef4444; color: #ef4444;">Cancelar</button>
+                        <button id="pos-modal-save" class="submit-btn" style="flex: 2; background-color: var(--primary-color);">Guardar Total</button>
                     </div>
                 </div>
             </div>

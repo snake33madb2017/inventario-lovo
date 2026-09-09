@@ -1844,25 +1844,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const posModal = document.getElementById('pos-modal');
     const posModalTitle = document.getElementById('pos-modal-title');
     const posModalCancel = document.getElementById('pos-modal-cancel');
-    const posQtyBtns = document.querySelectorAll('.pos-qty-btn');
+    const posModalSave = document.getElementById('pos-modal-save');
+    const posModalInput = document.getElementById('pos-modal-input');
+    const posCalcBtns = document.querySelectorAll('.pos-calc-btn');
     
     window.openPosModal = function(producto) {
         currentPosProduct = producto;
         if(posModalTitle) posModalTitle.textContent = producto;
+        
+        // Obtener stock base actual
+        let currentQty = (window.posStockBase || {})[producto.toLowerCase()] || 0;
+        currentQty = Math.round(currentQty * 1000) / 1000;
+        if(posModalInput) posModalInput.value = currentQty;
+        
         if(posModal) posModal.classList.remove('hidden');
     };
     
     if (posModalCancel) posModalCancel.addEventListener('click', () => posModal.classList.add('hidden'));
     
-    posQtyBtns.forEach(btn => {
+    posCalcBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            const qty = parseFloat(btn.getAttribute('data-qty'));
+            if(!posModalInput) return;
+            const calcVal = parseFloat(btn.getAttribute('data-calc'));
+            let currentVal = parseFloat(posModalInput.value) || 0;
+            let newVal = currentVal + calcVal;
+            if (newVal < 0) newVal = 0;
+            posModalInput.value = Math.round(newVal * 10) / 10;
+        });
+    });
+    
+    if (posModalSave) {
+        posModalSave.addEventListener('click', () => {
+            if(!posModalInput) return;
+            const qty = parseFloat(posModalInput.value) || 0;
             const cat = document.getElementById('category-dropdown').value;
-            // Use existing sendToServer function from app.js
             if (typeof sendToServer === 'function') {
                 sendToServer(cat, currentPosProduct, qty, false);
             }
             if(posModal) posModal.classList.add('hidden');
         });
-    });
+    }
 });
