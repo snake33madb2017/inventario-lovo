@@ -722,7 +722,7 @@ function renderList(filterText = '') {
         // Create accordion header
         const header = document.createElement('div');
         header.className = 'category-header';
-        const isExpanded = (categoria === autoExpandCategory) || (filterText.length > 0);
+        const isExpanded = true;
         if (isExpanded) header.classList.add('active');
         
         header.innerHTML = `
@@ -1624,65 +1624,55 @@ function renderCharts(cats, top5) {
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const target = btn.dataset.tab;
-        if(target === 'tab-compras') loadCatalogo();
+        if(target === 'tab-compras') fetchNotasCompra();
         if(target === 'tab-analitica') loadAnalitica();
     });
 });
 
-const btnPedido = document.getElementById('btn-generar-pedido');
-if(btnPedido) {
-    btnPedido.addEventListener('click', async () => {
-        if(!catalogoData.length) return alert('Cargando catálogo, espera un momento...');
+// --- Notas de Compra ---
+const btnGuardarNotas = document.getElementById('btn-guardar-notas');
+const notasInput = document.getElementById('notas-compra-input');
+
+async function fetchNotasCompra() {
+    try {
+        const response = await fetch(SERVER_URL + '/api/notas_compra', { headers: getAuthHeaders() });
+        if(response.ok) {
+            const data = await response.json();
+            if(notasInput) notasInput.value = data.texto || "";
+        }
+    } catch(e) { console.error("Error fetching notas", e); }
+}
+
+if (btnGuardarNotas && notasInput) {
+    btnGuardarNotas.addEventListener('click', async () => {
+        const texto = notasInput.value;
+        const btnOriginalText = btnGuardarNotas.textContent;
+        btnGuardarNotas.textContent = "Guardando...";
+        btnGuardarNotas.disabled = true;
         
         try {
-            const response = await fetch(SERVER_URL + '/api/inventario/comparativa', { headers: getAuthHeaders() });
-            const data = await response.json();
-            
-            let pedidoText = "🛒 *LISTA DE LA COMPRA - LOVO*\n\n";
-            let itemsCount = 0;
-            
-            data.comparativa.forEach(c => {
-                const catItem = catalogoData.find(x => x.producto === c.producto);
-                const ideal = catItem ? catItem.stock_ideal : 0;
-                
-                if(ideal > 0 && c.stock_actual < ideal) {
-                    const aPedir = Math.ceil(ideal - c.stock_actual);
-                    pedidoText += `- ${aPedir}x ${c.producto}\n`;
-                    itemsCount++;
-                }
+            const res = await fetch(SERVER_URL + '/api/notas_compra', {
+                method: 'POST',
+                headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ texto: texto })
             });
-            
-            if(itemsCount === 0) {
-                alert('¡Todo perfecto! No necesitas pedir nada, el stock actual supera al ideal en todos los productos configurados.');
-                return;
+            if(res.ok) {
+                btnGuardarNotas.textContent = "¡Guardado!";
+                btnGuardarNotas.style.backgroundColor = "#10b981";
+            } else {
+                btnGuardarNotas.textContent = "Error al guardar";
+                btnGuardarNotas.style.backgroundColor = "#ef4444";
             }
-            
-            const modalHtml = `
-                <div style="padding: 20px;">
-                    <h3 style="color:var(--primary-color); margin-bottom: 15px;">Lista Generada</h3>
-                    <textarea style="width:100%; height:200px; background:rgba(0,0,0,0.5); color:white; border:1px solid rgba(255,255,255,0.2); border-radius:8px; padding:10px;" id="pedido-textarea" readonly>${pedidoText}</textarea>
-                    <button onclick="navigator.clipboard.writeText(document.getElementById('pedido-textarea').value); alert('¡Copiado al portapapeles!');" style="width:100%; margin-top:15px; padding:12px; background:var(--primary-color); color:#000; font-weight:bold; border-radius:8px; cursor:pointer; border:none;">📋 Copiar para WhatsApp</button>
-                    <button onclick="document.getElementById('modal-ajuste-manual').classList.add('hidden')" style="width:100%; margin-top:10px; padding:12px; background:transparent; color:#aaa; border:none; cursor:pointer;">Cerrar</button>
-                </div>
-            `;
-            
-            const modal = document.getElementById('modal-ajuste-manual');
-            const content = modal.querySelector('.modal-content');
-            
-            const originalContent = content.innerHTML;
-            content.innerHTML = modalHtml;
-            modal.classList.remove('hidden');
-            
-            const closeBtn = content.querySelector('button:last-child');
-            closeBtn.onclick = () => {
-                modal.classList.add('hidden');
-                setTimeout(() => { content.innerHTML = originalContent; }, 300);
-            };
-            
         } catch(e) {
-            console.error(e);
-            alert('Error generando el pedido');
+            btnGuardarNotas.textContent = "Error de red";
+            btnGuardarNotas.style.backgroundColor = "#ef4444";
         }
+        
+        setTimeout(() => {
+            btnGuardarNotas.textContent = btnOriginalText;
+            btnGuardarNotas.disabled = false;
+            btnGuardarNotas.style.backgroundColor = ""; // reset to default css
+        }, 2000);
     });
 }
 
