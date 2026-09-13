@@ -356,20 +356,19 @@ async function syncOfflineQueue() {
 // --- Data Fetching ---
 async function fetchCategorias() {
     try {
-        
-const response = await fetch(`${SERVER_URL}/api/admin/categorias`, { headers: getAuthHeaders() }).catch(()=>({ok:false}));
+        const response = await fetch(`${SERVER_URL}/api/admin/categorias`, { headers: getAuthHeaders() }).catch(()=>({ok:false}));
         if(response.ok) {
             const data = await response.json();
             localStorage.setItem('cached_categorias', JSON.stringify(data));
-            categories = data;
-        } else {
-            const cached = localStorage.getItem('cached_categorias');
-            if(cached) categories = JSON.parse(cached);
-        }
-
-            const data = await response.json();
             categorias = data.map(c => c.nombre);
             renderCategorias();
+        } else {
+            const cached = localStorage.getItem('cached_categorias');
+            if(cached) {
+                const data = JSON.parse(cached);
+                categorias = data.map(c => c.nombre);
+                renderCategorias();
+            }
         }
     } catch(e) { console.error("Error cargando categorias", e); }
 }
