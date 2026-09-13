@@ -282,11 +282,91 @@ async function checkServerConnection() {
     }
 }
 
+
+// --- OFFLINE SYNC QUEUE ---
+function getOfflineQueue() {
+    return JSON.parse(localStorage.getItem('offline_queue') || '[]');
+}
+
+function saveOfflineQueue(queue) {
+    localStorage.setItem('offline_queue', JSON.stringify(queue));
+    updateOfflineUI();
+}
+
+function updateOfflineUI() {
+    const queue = getOfflineQueue();
+    let statusDiv = document.getElementById('offline-status-indicator');
+    if (!statusDiv) {
+        statusDiv = document.createElement('div');
+        statusDiv.id = 'offline-status-indicator';
+        document.body.appendChild(statusDiv);
+    }
+    
+    if (queue.length > 0) {
+        statusDiv.innerHTML = `Offline - ${queue.length} pendientes 🟠`;
+        statusDiv.className = 'offline-status offline active';
+    } else if (!navigator.onLine) {
+        statusDiv.innerHTML = `Offline 🔴`;
+        statusDiv.className = 'offline-status offline active';
+    } else {
+        statusDiv.innerHTML = `Online 🟢`;
+        statusDiv.className = 'offline-status online active';
+        setTimeout(() => statusDiv.classList.remove('active'), 3000);
+    }
+}
+
+window.addEventListener('online', syncOfflineQueue);
+window.addEventListener('offline', updateOfflineUI);
+
+async function syncOfflineQueue() {
+    const queue = getOfflineQueue();
+    if (queue.length === 0) {
+        updateOfflineUI();
+        return;
+    }
+    
+    let pendingQueue = [];
+    let syncedCount = 0;
+    
+    for (let item of queue) {
+        try {
+            const response = await fetch(`${SERVER_URL}/api/registro`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(item)
+            });
+            if (response.ok) {
+                syncedCount++;
+            } else {
+                pendingQueue.push(item);
+            }
+        } catch (e) {
+            pendingQueue.push(item);
+        }
+    }
+    
+    saveOfflineQueue(pendingQueue);
+    if (syncedCount > 0) {
+        if (typeof showToast === 'function') showToast(`Se sincronizaron ${syncedCount} ítems pendientes.`);
+        if (typeof fetchInventarioHoy === 'function') fetchInventarioHoy();
+    }
+}
+// -------------------------
+
 // --- Data Fetching ---
 async function fetchCategorias() {
     try {
-        const response = await fetch(`${SERVER_URL}/api/admin/categorias`, { headers: getAuthHeaders() });
+        
+const response = await fetch(`${SERVER_URL}/api/admin/categorias`, { headers: getAuthHeaders() }).catch(()=>({ok:false}));
         if(response.ok) {
+            const data = await response.json();
+            localStorage.setItem('cached_categorias', JSON.stringify(data));
+            categories = data;
+        } else {
+            const cached = localStorage.getItem('cached_categorias');
+            if(cached) categories = JSON.parse(cached);
+        }
+
             const data = await response.json();
             categorias = data.map(c => c.nombre);
             renderCategorias();
@@ -617,11 +697,11 @@ async function downloadExcel() {
 }
 
 
+
 async function sendToServer(categoria, producto, cantidad, fueCorregido = false) {
     let cantidadFinal = cantidad;
     let conversionInfo = "";
     
-    // Lógica para detectar Garrafas y convertir a mililitros
     const match = producto.match(/\b(\d+)\s*L\b/i);
     if (match && (categoria.toLowerCase().includes('produccion') || categoria.toLowerCase().includes('garrafa') || producto.toLowerCase().includes('garrafa'))) {
         const litros = parseInt(match[1]);
@@ -631,13 +711,16 @@ async function sendToServer(categoria, producto, cantidad, fueCorregido = false)
 
     const payloadStr = `${categoria}|${producto}|${cantidadFinal}`;
     const now = Date.now();
-    if (payloadStr === lastSentPayload && (now - lastSentTime) < 4000) return;
-    lastSentPayload = payloadStr;
-    lastSentTime = now;
+    if (typeof lastSentPayload !== 'undefined' && payloadStr === lastSentPayload && (now - lastSentTime) < 4000) return;
+    if (typeof lastSentPayload !== 'undefined') {
+        lastSentPayload = payloadStr;
+        lastSentTime = now;
+    }
     
-    liveText.textContent = `Guardando: ${cantidad} de ${producto}${conversionInfo}...`;
+    if (typeof liveText !== 'undefined' && liveText) {
+        liveText.textContent = `Guardando: ${cantidad} de ${producto}${conversionInfo}...`;
+    }
     const payload = { categoria: categoria, producto: producto, cantidad_dictada: cantidadFinal, usuario: localStorage.getItem('usuario_lovo_nombre') || "Desconocido" };
-
 
     try {
         const response = await fetch(`${SERVER_URL}/api/registro`, {
@@ -646,17 +729,42 @@ async function sendToServer(categoria, producto, cantidad, fueCorregido = false)
             body: JSON.stringify(payload)
         });
         if (response.ok) {
-            if(beepAudio) beepAudio();
-            showToast();
-            fetchInventarioHoy();
-            updateStatus(true);
-            liveText.textContent = fueCorregido ? `¡Registrado y Corregido a! ${cantidad} ${producto}` : `¡Registrado! ${cantidad} ${producto}`;
-            if (!historicoProductos.includes(producto)) historicoProductos.push(producto);
-            setTimeout(() => { if(isListening) liveText.textContent = "Escuchando..."; }, 2500);
+            if (typeof beepAudio === 'function') beepAudio();
+            if (typeof showToast === 'function') showToast();
+            if (typeof updateStatus === 'function') updateStatus(true);
+            if (typeof fetchInventarioHoy === 'function') fetchInventarioHoy();
+            
+            if (typeof recentItems !== 'undefined') {
+                recentItems.push({ categoria, producto, cantidad: cantidadFinal, fueCorregido });
+                if (recentItems.length > 5) recentItems.shift();
+                if (typeof renderRecentItems === 'function') renderRecentItems();
+            }
+            
+            if (typeof liveText !== 'undefined' && liveText) {
+                liveText.classList.add('fade-out');
+                setTimeout(() => { liveText.textContent = "Escuchando..."; liveText.classList.remove('fade-out'); }, 2500);
+            }
         } else throw new Error("Error en respuesta");
     } catch (error) {
-        liveText.textContent = "Error al guardar. Revisa conexión.";
-        updateStatus(false);
+        console.warn('Network error, saving to offline queue', error);
+        const queue = getOfflineQueue();
+        queue.push(payload);
+        saveOfflineQueue(queue);
+        
+        if (typeof beepAudio === 'function') beepAudio();
+        if (typeof showToast === 'function') showToast(`Offline: Guardado localmente (${producto})`, 'orange');
+        if (typeof updateStatus === 'function') updateStatus(false);
+        
+        if (typeof recentItems !== 'undefined') {
+            recentItems.push({ categoria, producto, cantidad: cantidadFinal, fueCorregido, offline: true });
+            if (recentItems.length > 5) recentItems.shift();
+            if (typeof renderRecentItems === 'function') renderRecentItems();
+        }
+        
+        if (typeof liveText !== 'undefined' && liveText) {
+            liveText.classList.add('fade-out');
+            setTimeout(() => { liveText.textContent = "Escuchando..."; liveText.classList.remove('fade-out'); }, 2500);
+        }
     }
 }
 
