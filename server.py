@@ -1002,7 +1002,8 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         
         stock_act = {}
         auditors = {}
-        for row in rows:
+        for r_obj in rows:
+            row = dict(r_obj)
             prod_raw = row['producto'].strip().lower()
             prod_norm = diccionario.get(prod_raw, prod_raw)
             ubicacion = row.get('ubicacion', 'General')
