@@ -551,6 +551,32 @@ def añadir_registro(registro: Registro, user: dict = Depends(get_current_user))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/registro/{registro_id}")
+def borrar_registro(registro_id: int, user: dict = Depends(get_current_user)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Obtener el registro para verificar propiedad
+        cursor.execute('SELECT id, usuario FROM registros WHERE id = ?', (registro_id,))
+        row = cursor.fetchone()
+        
+        if row:
+            # Si es el dueño del registro o si es admin (encargado)
+            if row['usuario'] == user.get("nombre") or user.get("rol") == "encargado":
+                cursor.execute('DELETE FROM registros WHERE id = ?', (registro_id,))
+                conn.commit()
+                conn.close()
+                return {"status": "success", "message": "Registro eliminado correctamente"}
+            else:
+                conn.close()
+                return {"status": "error", "message": "No tienes permiso para borrar este registro"}
+        
+        conn.close()
+        return {"status": "warning", "message": "Registro no encontrado"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.delete("/api/registro/ultimo")
 def borrar_ultimo(user: dict = Depends(get_current_user)):
     try:
@@ -738,7 +764,12 @@ def obtener_productos_pos(user: dict = Depends(get_current_user)):
         cursor = conn.cursor()
         
         # Query distinct categories and products
-        cursor.execute("SELECT DISTINCT categoria, producto FROM registros WHERE categoria IS NOT NULL AND categoria != '' ORDER BY categoria, producto")
+        cursor.execute("""
+            SELECT DISTINCT categoria, producto FROM registros WHERE categoria IS NOT NULL AND categoria != ''
+            UNION
+            SELECT DISTINCT categoria, producto FROM stock_referencia WHERE categoria IS NOT NULL AND categoria != ''
+            ORDER BY categoria, producto
+        """)
         cat_rows = cursor.fetchall()
         
         # Query latest stock per product

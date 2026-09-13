@@ -217,13 +217,14 @@
                 <div class="section-header">
                     <h2>Inventario de Hoy</h2>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
-                        <button id="undo-btn" class="undo-btn" disabled>
+                        <button id="undo-btn" class="undo-btn hidden" disabled style="display: none;">
                             Deshacer
                         </button>
                     </div>
                 </div>
-                <div class="search-container" style="margin-top: 10px; margin-bottom: 10px;">
-                    <input type="text" id="search-input" placeholder="🔍 Buscar producto en el historial..." autocomplete="off">
+                <div class="search-container" style="margin-top: 10px; margin-bottom: 10px; display: flex; gap: 8px;">
+                    <input type="text" id="search-input" placeholder="🔍 Buscar producto en el historial..." autocomplete="off" style="flex: 1;">
+                    <button id="filter-missing-btn" class="undo-btn" style="font-size: 0.75rem; padding: 4px 8px; border-color: #f59e0b; color: #f59e0b;">Faltantes</button>
                 </div>
                 <ul id="items-list" class="items-list">
                     <!-- Los items aparecerán aquí -->

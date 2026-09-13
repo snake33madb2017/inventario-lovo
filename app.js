@@ -151,7 +151,24 @@ async function init() {
     const searchInput = document.getElementById('search-input');
     if(searchInput) {
         searchInput.addEventListener('input', () => {
-            renderList(searchInput.value.toLowerCase());
+            renderList(searchInput.value.toLowerCase(), false);
+        });
+    }
+    
+    const filterMissingBtn = document.getElementById('filter-missing-btn');
+    if(filterMissingBtn) {
+        let showingMissing = false;
+        filterMissingBtn.addEventListener('click', () => {
+            showingMissing = !showingMissing;
+            if(showingMissing) {
+                filterMissingBtn.style.backgroundColor = '#f59e0b';
+                filterMissingBtn.style.color = 'white';
+                renderList('', true);
+            } else {
+                filterMissingBtn.style.backgroundColor = 'transparent';
+                filterMissingBtn.style.color = '#f59e0b';
+                renderList(searchInput ? searchInput.value.toLowerCase() : '', false);
+            }
         });
     }
     
@@ -767,49 +784,63 @@ async function sendToServer(categoria, producto, cantidad, fueCorregido = false)
     }
 }
 
-async function undoLastItem() {
-    if (recentItems.length === 0) return;
+async function deleteItem(id) {
+    if (!confirm("¿Seguro que quieres borrar este registro?")) return;
     try {
-        const response = await fetch(`${SERVER_URL}/api/registro/ultimo`, { method: 'DELETE', headers: getAuthHeaders() });
+        const response = await fetch(`${SERVER_URL}/api/registro/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
         if (response.ok) {
             const data = await response.json();
-            if (data.status === "warning") {
+            if (data.status === "warning" || data.status === "error") {
                 showToast(data.message);
             } else {
                 fetchInventarioHoy();
                 showToast("Registro borrado");
             }
         }
-    } catch (error) {}
+    } catch (error) { console.error(error); }
 }
 
 async function clearMonthInventory() {
-    if (confirm("⚠️ GUARDAR CIERRE DE MES\n\nEsto guardará el conteo de HOY como el cierre definitivo de este mes, y borrará los conteos de días anteriores de este mismo mes.\n\nLos meses pasados (ej. Julio) se mantendrán en el historial.\n\n¡Asegúrate de haber descargado el Excel antes!")) {
+    const confirmation = prompt("⚠️ GUARDAR CIERRE DE MES\n\nEsto guardará el conteo de HOY como el cierre definitivo de este mes, y borrará los conteos de días anteriores.\n\nEscribe 'CONFIRMAR' para continuar.");
+    if (confirmation === 'CONFIRMAR') {
         try {
             const response = await fetch(`${SERVER_URL}/api/inventario/todo`, { method: 'DELETE', headers: getAuthHeaders() });
             if (response.ok) {
                 fetchInventarioHoy();
                 historicoProductos = [];
-                alert("Inventario borrado por completo.");
+                alert("Cierre de mes guardado exitosamente.");
             }
         } catch (error) {}
+    } else if (confirmation !== null) {
+        alert("Operación cancelada. No escribiste 'CONFIRMAR'.");
     }
 }
 
-function renderList(filterText = '') {
+function renderList(filterText = '', showMissingOnly = false) {
     itemsList.innerHTML = '';
     
-    if (recentItems.length === 0) {
-        itemsList.innerHTML = `<li class="item-card" style="justify-content: center; color: var(--text-muted); font-style: italic;">Sin registros hoy</li>`;
-        undoBtn.disabled = true;
+    let itemsToRenderSource = recentItems;
+    
+    if (showMissingOnly) {
+        const dictadosSet = new Set(recentItems.map(i => i.producto.toLowerCase()));
+        itemsToRenderSource = stockReferencia.filter(ref => !dictadosSet.has(ref.producto.toLowerCase())).map(ref => ({
+            id: null,
+            categoria: ref.categoria,
+            producto: ref.producto,
+            cantidad_dictada: 0,
+            hora: 'Faltante',
+            usuario: 'Sistema'
+        }));
+    }
+    
+    if (itemsToRenderSource.length === 0) {
+        itemsList.innerHTML = `<li class="item-card" style="justify-content: center; color: var(--text-muted); font-style: italic;">Sin registros ${showMissingOnly ? 'faltantes' : 'hoy'}</li>`;
         return;
     }
     
-    undoBtn.disabled = false;
-    
     // Group by category, but keep order within category
     const grupos = {};
-    recentItems.forEach(item => {
+    itemsToRenderSource.forEach(item => {
         if (!grupos[item.categoria]) grupos[item.categoria] = [];
         // Filtering
         if (filterText) {
@@ -823,8 +854,8 @@ function renderList(filterText = '') {
     
     // Determine the category to auto-expand (usually the one from the most recent item, i.e., index 0)
     let autoExpandCategory = null;
-    if (!filterText && recentItems.length > 0) {
-        autoExpandCategory = recentItems[0].categoria;
+    if (!filterText && itemsToRenderSource.length > 0) {
+        autoExpandCategory = itemsToRenderSource[0].categoria;
     }
     
     for (const [categoria, items] of Object.entries(grupos)) {
@@ -866,13 +897,27 @@ function renderList(filterText = '') {
                 refBadge = `<div style="font-size: 0.7rem; color: rgba(255,255,255,0.4); margin-top: 2px;">Stock previo: ${ref.stock_anterior} btls</div>`;
             }
             
+            const currentUser = localStorage.getItem('usuario_lovo_nombre');
+            const currentUserRol = localStorage.getItem('usuario_lovo_rol');
+            let deleteBtnHtml = '';
+            
+            // Si es su registro o es encargado, puede borrarlo. Los ítems faltantes (id=null) no se pueden borrar.
+            if (item.id && (item.usuario === currentUser || currentUserRol === 'encargado')) {
+                deleteBtnHtml = `<button onclick="deleteItem(${item.id})" style="background:none; border:none; color:#ef4444; font-size:1rem; cursor:pointer; padding: 5px;">❌</button>`;
+            }
+            
+            const userTag = item.usuario && item.usuario !== 'Sistema' ? `<span style="color:var(--primary-color); font-size:0.7rem;">(por ${item.usuario})</span>` : '';
+            
             li.innerHTML = `
                 <div class="item-info">
-                    <span class="item-name">${item.producto}</span>
+                    <span class="item-name">${item.producto} ${userTag}</span>
                     <span class="item-time">${item.hora}</span>
                     ${refBadge}
                 </div>
-                <div class="item-quantity">${item.cantidad_dictada}</div>
+                <div style="display:flex; align-items:center; gap: 10px;">
+                    <div class="item-quantity" style="${showMissingOnly ? 'color: #ef4444;' : ''}">${item.cantidad_dictada}</div>
+                    ${deleteBtnHtml}
+                </div>
             `;
             contentContainer.appendChild(li);
         });
