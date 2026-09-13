@@ -1044,11 +1044,10 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
                             if not (isinstance(right_cell.value, str) and right_cell.value.startswith('=')):
                                 right_cell.value = stock_act.get(real_prod, 0.0)
                             
-                            # Escribir auditor en columna D (Usuario)
-                            user_cell = ws.cell(row=cell.row, column=cell.column + 2)
+                            # Agregar comentario con auditor a la celda de cantidad
                             if real_prod in auditors and auditors[real_prod]:
                                 auditor_names = ", ".join(auditors[real_prod])
-                                user_cell.value = auditor_names
+                                right_cell.comment = Comment(f"Contado por: {auditor_names}", "Sistema")
 
         temp_file = f"Inventario_Cierre_{fecha_archivo}.xlsx"
         wb.save(temp_file)
