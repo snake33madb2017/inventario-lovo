@@ -78,6 +78,7 @@ class Registro(BaseModel):
     producto: str
     cantidad_dictada: float
     usuario: str = "Desconocido"
+    ubicacion: str = "General"
 
 class LoginRequest(BaseModel):
     dni: str
@@ -507,7 +508,7 @@ def login(req: LoginRequest):
 @app.post("/api/registro")
 def añadir_registro(registro: Registro, user: dict = Depends(get_current_user)):
     global last_registro_time, last_registro_payload
-    payload_str = f"{registro.categoria}|{registro.producto}|{registro.cantidad_dictada}|{registro.usuario}"
+    payload_str = f"{registro.categoria}|{registro.producto}|{registro.cantidad_dictada}|{registro.usuario}|{registro.ubicacion}"
     current_time = time.time()
     if payload_str == last_registro_payload and (current_time - last_registro_time) < 4.0:
         return {"status": "success", "message": "Registro duplicado ignorado por el servidor"}
@@ -542,9 +543,9 @@ def añadir_registro(registro: Registro, user: dict = Depends(get_current_user))
                 cat_final = "General"
 
         cursor.execute('''
-            INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (fecha, hora, cat_final, registro.producto, registro.cantidad_dictada, botellas_llenas, restante_str, registro.usuario))
+            INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario, ubicacion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (fecha, hora, cat_final, registro.producto, registro.cantidad_dictada, botellas_llenas, restante_str, registro.usuario, registro.ubicacion))
         conn.commit()
         conn.close()
         return {"status": "success", "message": "Registro añadido correctamente"}
@@ -1004,6 +1005,7 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         for row in rows:
             prod_raw = row['producto'].strip().lower()
             prod_norm = diccionario.get(prod_raw, prod_raw)
+            ubicacion = row.get('ubicacion', 'General')
             
             b = row['botellas_llenas']
             r_str = row['restante_porcentaje']
@@ -1019,10 +1021,14 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
                             r_val = r_val / 100.0
                 except: pass
             total_qty = b + r_val
+            
             if prod_norm not in stock_act: 
-                stock_act[prod_norm] = 0.0
+                stock_act[prod_norm] = {}
                 auditors[prod_norm] = set()
-            stock_act[prod_norm] += total_qty
+            if ubicacion not in stock_act[prod_norm]:
+                stock_act[prod_norm][ubicacion] = 0.0
+                
+            stock_act[prod_norm][ubicacion] += total_qty
             if row['usuario']:
                 auditors[prod_norm].add(row['usuario'])
             
@@ -1032,24 +1038,42 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         ignore_words = {"producto", "total", "precio", "articulos", "cristaleria", "producciones", "botellas", "garrafas", "observaciones", "categoría", "usuario", "cantidad"}
         
         for ws in wb.worksheets:
+            header_col_map = {}
+            if ws.title.lower() == 'cristaleria':
+                for r in ws.iter_rows(min_row=1, max_row=10):
+                    for cell in r:
+                        if cell.value and isinstance(cell.value, str):
+                            val = cell.value.strip().upper()
+                            if val in ['DJ', 'BARRA CAZA', 'BARRA CUEVA', 'SALA']:
+                                header_col_map[val] = cell.column
+                                
             for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
                 for cell in row:
                     if cell.value and isinstance(cell.value, str):
                         cell_norm = cell.value.strip().lower()
                         if cell_norm not in ignore_words and cell_norm in diccionario:
                             real_prod = diccionario[cell_norm]
-                            right_cell = ws.cell(row=cell.row, column=cell.column + 1)
                             
-                            # Escribir cantidad en columna C
-                            if type(right_cell).__name__ != 'MergedCell':
-                                if not (isinstance(right_cell.value, str) and right_cell.value.startswith('=')):
-                                    right_cell.value = stock_act.get(real_prod, 0.0)
+                            if header_col_map:
+                                for ubi, col_idx in header_col_map.items():
+                                    target_cell = ws.cell(row=cell.row, column=col_idx)
+                                    if type(target_cell).__name__ != 'MergedCell':
+                                        qty = stock_act.get(real_prod, {}).get(ubi, 0.0)
+                                        if qty > 0:
+                                            target_cell.value = qty
+                            else:
+                                right_cell = ws.cell(row=cell.row, column=cell.column + 1)
+                                if type(right_cell).__name__ != 'MergedCell':
+                                    if not (isinstance(right_cell.value, str) and right_cell.value.startswith('=')):
+                                        total_prod = sum(stock_act.get(real_prod, {}).values())
+                                        right_cell.value = total_prod
                             
-                            # Agregar comentario con auditor a la celda de cantidad
-                            if type(right_cell).__name__ != 'MergedCell':
+                            right_cell_auditor = ws.cell(row=cell.row, column=cell.column + 1)
+                            if type(right_cell_auditor).__name__ != 'MergedCell':
                                 if real_prod in auditors and auditors[real_prod]:
                                     auditor_names = ", ".join(auditors[real_prod])
-                                    right_cell.comment = Comment(f"Contado por: {auditor_names}", "Sistema")
+                                    right_cell_auditor.comment = Comment(f"Contado por: {auditor_names}", "Sistema")
+
 
         temp_file = f"Inventario_Cierre_{fecha_archivo}.xlsx"
         wb.save(temp_file)

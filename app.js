@@ -759,7 +759,20 @@ async function sendToServer(categoria, producto, cantidad, fueCorregido = false)
     if (typeof liveText !== 'undefined' && liveText) {
         liveText.textContent = `Guardando: ${cantidad} de ${producto}${conversionInfo}...`;
     }
-    const payload = { categoria: categoria, producto: producto, cantidad_dictada: cantidadFinal, usuario: localStorage.getItem('usuario_lovo_nombre') || "Desconocido" };
+    
+    let ubicacion = "General";
+    const locDropdown = document.getElementById('location-dropdown');
+    if (locDropdown) {
+        ubicacion = locDropdown.value;
+    }
+    
+    const payload = { 
+        categoria: categoria, 
+        producto: producto, 
+        cantidad_dictada: cantidadFinal, 
+        usuario: localStorage.getItem('usuario_lovo_nombre') || "Desconocido",
+        ubicacion: ubicacion
+    };
 
     try {
         const response = await fetch(`${SERVER_URL}/api/registro`, {
@@ -2080,14 +2093,25 @@ document.addEventListener('DOMContentLoaded', () => {
         else imgName = 'licor_gen.jpg';
 
         productos.forEach(prod => {
-            let totalQty = (window.posStockBase || {})[prod.toLowerCase()] || 0;
-            totalQty = Math.round(totalQty * 1000) / 1000; // redondear para evitar errores float
+            // Calcular cantidad basandose en lo contado hoy (recentItems) y no en el stock histórico
+            let totalQty = 0;
+            if (typeof recentItems !== 'undefined') {
+                const prodLower = prod.toLowerCase();
+                const registrosHoy = recentItems.filter(r => r.producto && r.producto.toLowerCase() === prodLower);
+                totalQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+            }
+            
+            // Si hay un valor filtrado por ubicacion, podriamos usarlo, pero por ahora sumamos todo lo de hoy
+            totalQty = Math.round(totalQty * 1000) / 1000;
 
             const card = document.createElement('div');
             card.className = 'pos-card';
             card.innerHTML = `
                 <img src="${imgName}" alt="${prod}" onerror="this.src='logo_lovo.png'">
                 <span class="pos-title">${prod}</span>
+                <div style="background: rgba(0,255,0,0.15); color: #4ade80; width: 90%; padding: 4px 0; border-radius: 6px; text-align: center; font-size: 0.85rem; margin-top: 5px; font-weight: bold; border: 1px solid rgba(74, 222, 128, 0.3);">
+                    Cant: ${totalQty > 0 ? totalQty : 0}
+                </div>
             `;
             card.addEventListener('click', () => openPosModal(prod));
             grid.appendChild(card);
@@ -2106,8 +2130,13 @@ document.addEventListener('DOMContentLoaded', () => {
         currentPosProduct = producto;
         if(posModalTitle) posModalTitle.textContent = producto;
         
-        // Obtener stock base actual
-        let currentQty = (window.posStockBase || {})[producto.toLowerCase()] || 0;
+        let currentQty = 0;
+        if (typeof recentItems !== 'undefined') {
+            const prodLower = producto.toLowerCase();
+            const registrosHoy = recentItems.filter(r => r.producto && r.producto.toLowerCase() === prodLower);
+            currentQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+        }
+        
         currentQty = Math.round(currentQty * 1000) / 1000;
         if(posModalInput) posModalInput.value = currentQty;
         
