@@ -76,7 +76,7 @@ async function init() {
     loginForm.addEventListener('submit', handleLogin);
     logoutBtn.addEventListener('click', handleLogout);
     micBtn.addEventListener('click', toggleListening);
-    undoBtn.addEventListener('click', undoLastItem);
+    // undoBtn.addEventListener('click', undoLastItem); // Función reemplazada por botones individuales
     adminToggleBtn.addEventListener('click', toggleAdminView);
     closeAdminBtn.addEventListener('click', toggleAdminView);
     
