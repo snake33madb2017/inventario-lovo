@@ -1006,6 +1006,73 @@ function toggleAdminView() {
     }
 }
 
+// --- AGOSTO VIEW LOGIC ---
+function toggleAgostoView() {
+    if (agostoView.classList.contains('hidden')) {
+        agostoView.classList.remove('hidden');
+        appView.classList.add('hidden');
+        if(adminView) adminView.classList.add('hidden');
+        if(laboratorioView) laboratorioView.classList.add('hidden');
+        renderAgostoGrid();
+    } else {
+        agostoView.classList.add('hidden');
+        appView.classList.remove('hidden');
+    }
+}
+
+function renderAgostoGrid() {
+    agostoGrid.innerHTML = '';
+    let itemsAgosto = stockReferencia.filter(ref => ref.stock_anterior > 0);
+    
+    if(agostoCategoryDropdown.options.length === 0) {
+        const allOption = document.createElement('option');
+        allOption.value = 'Todas';
+        allOption.textContent = 'Todas';
+        agostoCategoryDropdown.appendChild(allOption);
+        
+        const catSet = new Set(itemsAgosto.map(i => i.categoria));
+        Array.from(catSet).sort().forEach(cat => {
+            const opt = document.createElement('option');
+            opt.value = cat;
+            opt.textContent = cat;
+            agostoCategoryDropdown.appendChild(opt);
+        });
+        
+        agostoCategoryDropdown.addEventListener('change', renderAgostoGrid);
+    }
+    
+    const catFiltro = agostoCategoryDropdown.value;
+    if (catFiltro !== 'Todas') {
+        itemsAgosto = itemsAgosto.filter(i => i.categoria === catFiltro);
+    }
+    
+    itemsAgosto.sort((a,b) => a.producto.localeCompare(b.producto));
+    
+    if (itemsAgosto.length === 0) {
+        agostoGrid.innerHTML = '<p style="color:white; text-align:center; grid-column: 1 / -1;">No hay registros para mostrar.</p>';
+        return;
+    }
+    
+    itemsAgosto.forEach(ref => {
+        let imgName = 'jack_daniels.jpg';
+        const catLower = ref.categoria.toLowerCase();
+        if (catLower.includes('cristal')) imgName = 'cristaleria_gen.jpg';
+        else if (catLower.includes('garrafa')) imgName = 'garrafa_gen.jpg';
+        else imgName = 'licor_gen.jpg';
+        
+        const card = document.createElement('div');
+        card.className = 'pos-card';
+        card.innerHTML = `
+            <img src="${imgName}" alt="${ref.producto}" onerror="this.src='logo_lovo.png'">
+            <span class="pos-title">${ref.producto}</span>
+            <div style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; width: 90%; padding: 4px 0; border-radius: 6px; text-align: center; font-size: 0.85rem; margin-top: 5px; font-weight: bold; border: 1px solid rgba(245, 158, 11, 0.3);">
+                Total: ${ref.stock_anterior}
+            </div>
+        `;
+        agostoGrid.appendChild(card);
+    });
+}
+
 // --- LABORATORIO LOGIC ---
 function toggleLaboratorioView() {
     if(laboratorioView.classList.contains('hidden')) {
