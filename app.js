@@ -1010,13 +1010,17 @@ function toggleAdminView() {
 function toggleAgostoView() {
     if (agostoView.classList.contains('hidden')) {
         agostoView.classList.remove('hidden');
+        agostoView.classList.add('active');
         appView.classList.add('hidden');
+        appView.classList.remove('active');
         if(adminView) adminView.classList.add('hidden');
         if(laboratorioView) laboratorioView.classList.add('hidden');
         renderAgostoGrid();
     } else {
         agostoView.classList.add('hidden');
+        agostoView.classList.remove('active');
         appView.classList.remove('hidden');
+        appView.classList.add('active');
     }
 }
 
@@ -2084,9 +2088,6 @@ document.addEventListener('DOMContentLoaded', () => {
             card.innerHTML = `
                 <img src="${imgName}" alt="${prod}" onerror="this.src='logo_lovo.png'">
                 <span class="pos-title">${prod}</span>
-                <div style="background: rgba(0,255,0,0.15); color: #4ade80; width: 90%; padding: 4px 0; border-radius: 6px; text-align: center; font-size: 0.85rem; margin-top: 5px; font-weight: bold; border: 1px solid rgba(74, 222, 128, 0.3);">
-                    Cant: ${totalQty > 0 ? totalQty : 0}
-                </div>
             `;
             card.addEventListener('click', () => openPosModal(prod));
             grid.appendChild(card);
