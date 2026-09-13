@@ -102,6 +102,9 @@
                         <button id="admin-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #3b82f6; border-color: #3b82f6;">
                             ⚙️ Admin
                         </button>
+                        <button id="history-agosto-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #f59e0b; border-color: #f59e0b;">
+                            📅 Ver Agosto
+                        </button>
                         <button id="logout-btn" class="undo-btn" style="font-size: 0.75rem; padding: 4px 8px;">
                             Salir
                         </button>
@@ -130,9 +133,9 @@
 
         <main>
             <div class="mode-switcher" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
-                <button id="mode-voz-btn" class="mode-btn active">🎙️ Voz</button>
+                <button id="mode-voz-btn" class="mode-btn">🎙️ Voz</button>
                 <button id="mode-teclado-btn" class="mode-btn" style="display: none;">⌨️ Teclado</button>
-                <button id="mode-caja-btn" class="mode-btn">📱 Caja</button>
+                <button id="mode-caja-btn" class="mode-btn active">📱 Caja</button>
             </div>
 
             <div class="category-selector">
@@ -144,7 +147,7 @@
                 </div>
             </div>
             
-            <div id="mode-voz-container" class="mode-container active">
+            <div id="mode-voz-container" class="mode-container hidden">
                 <div class="microphone-section">
                     <div class="mic-ripple"></div>
                     <button id="mic-btn" class="mic-btn">
@@ -179,9 +182,9 @@
                 </div>
             </div>
 
-            <div id="mode-caja-container" class="mode-container hidden">
+            <div id="mode-caja-container" class="mode-container active">
                 <div id="pos-grid" class="pos-grid">
-                    <!-- Cards will be populated by JS -->
+                    <!-- Tarjetas de caja se inyectan aquí -->
                 </div>
             </div>
 
@@ -213,7 +216,7 @@
                 <p id="live-text" class="placeholder">Lo que escuche aparecerá aquí...</p>
             </div>
 
-            <div class="recent-items-section">
+            <div class="recent-items-section" style="display: none;">
                 <div class="section-header">
                     <h2>Inventario de Hoy</h2>
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; width: 100%;">
@@ -232,6 +235,30 @@
             </div>
         </main>
     </div> <!-- End of app-view -->
+
+    <!-- Vista de Agosto -->
+    <div id="agosto-view" class="view hidden" style="background: var(--bg-main); z-index: 1000; position: fixed; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto;">
+        <header>
+            <div class="header-left">
+                <h2>📅 Historial de Agosto</h2>
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Inventario cerrado en Agosto</p>
+            </div>
+            <button id="close-agosto-btn" class="undo-btn" style="color: white; border-color: white;">Volver</button>
+        </header>
+        <main style="padding: 1rem;">
+            <div class="category-selector">
+                <label for="agosto-category-dropdown">Categoría</label>
+                <div class="category-controls">
+                    <select id="agosto-category-dropdown">
+                        <!-- Llenado por JS -->
+                    </select>
+                </div>
+            </div>
+            <div id="agosto-grid" class="pos-grid">
+                <!-- Tarjetas de agosto se inyectan aquí -->
+            </div>
+        </main>
+    </div>
 
     <!-- Panel de Administración -->
     <div id="admin-view" class="view hidden admin-container">
@@ -401,6 +428,6 @@
 
     <div id="toast" class="toast">Notificación</div>
 
-    <script src="app.js?v=14"></script>
+    <script src="app.js?v=15"></script>
 </body>
 </html>

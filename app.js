@@ -21,6 +21,11 @@ const undoBtn = document.getElementById('undo-btn');
 const downloadBtn = document.getElementById('download-btn');
 const clearMonthBtn = document.getElementById('clear-month-btn');
 const adminToggleBtn = document.getElementById('admin-toggle-btn');
+const historyAgostoBtn = document.getElementById('history-agosto-btn');
+const agostoView = document.getElementById('agosto-view');
+const closeAgostoBtn = document.getElementById('close-agosto-btn');
+const agostoCategoryDropdown = document.getElementById('agosto-category-dropdown');
+const agostoGrid = document.getElementById('agosto-grid');
 const logoutBtn = document.getElementById('logout-btn');
 const categoryDropdown = document.getElementById('category-dropdown');
 const statusIndicator = document.getElementById('status-indicator');
@@ -79,6 +84,13 @@ async function init() {
     // undoBtn.addEventListener('click', undoLastItem); // Función reemplazada por botones individuales
     adminToggleBtn.addEventListener('click', toggleAdminView);
     closeAdminBtn.addEventListener('click', toggleAdminView);
+    
+    if(historyAgostoBtn) {
+        historyAgostoBtn.addEventListener('click', toggleAgostoView);
+    }
+    if(closeAgostoBtn) {
+        closeAgostoBtn.addEventListener('click', toggleAgostoView);
+    }
     
     if(laboratorioToggleBtn) {
         laboratorioToggleBtn.addEventListener('click', toggleLaboratorioView);
@@ -208,9 +220,11 @@ function showApp(userName, userRol) {
     if(userRol === 'encargado') {
         downloadBtn.classList.remove('hidden');
         clearMonthBtn.classList.remove('hidden');
+        if(historyAgostoBtn) historyAgostoBtn.classList.remove('hidden');
     } else {
         downloadBtn.classList.add('hidden');
         clearMonthBtn.classList.add('hidden');
+        if(historyAgostoBtn) historyAgostoBtn.classList.add('hidden');
     }
     
     if(userRol === 'encargado' || userRol === 'produccion') {
@@ -403,6 +417,13 @@ async function fetchDiccionario() {
 
 function renderCategorias() {
     categoryDropdown.innerHTML = '';
+    
+    // Añadir opción "Todas"
+    const allOption = document.createElement('option');
+    allOption.value = 'Todas';
+    allOption.textContent = 'Todas';
+    categoryDropdown.appendChild(allOption);
+    
     categorias.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat;
@@ -410,8 +431,10 @@ function renderCategorias() {
         categoryDropdown.appendChild(option);
     });
     const lastCat = localStorage.getItem('last_category');
-    if(lastCat && categorias.includes(lastCat)) {
+    if(lastCat && (categorias.includes(lastCat) || lastCat === 'Todas')) {
         categoryDropdown.value = lastCat;
+    } else {
+        categoryDropdown.value = 'Todas';
     }
 }
 
@@ -1964,7 +1987,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const grid = document.getElementById('pos-grid');
         if (!grid) return;
         grid.innerHTML = '';
-        const productos = posData[categoria] || [];
+        let productos = [];
+        if (categoria === 'Todas') {
+            for (let cat in posData) {
+                productos = productos.concat(posData[cat]);
+            }
+            productos.sort((a, b) => a.localeCompare(b));
+        } else {
+            productos = posData[categoria] || [];
+        }
         
         if (productos.length === 0) {
             grid.innerHTML = '<p style="color:var(--text-muted); text-align:center; grid-column: 1 / -1;">No hay productos en esta categoría.</p>';
