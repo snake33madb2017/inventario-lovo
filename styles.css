@@ -613,6 +613,10 @@ main {
     border-bottom: 1px solid var(--border-color);
     padding-bottom: 8px;
     overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+}
+.admin-tabs::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
 }
 .tab-btn {
     background: transparent;
