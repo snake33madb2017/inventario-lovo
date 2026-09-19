@@ -999,16 +999,23 @@ function toggleAdminView() {
         const userRol = localStorage.getItem('usuario_lovo_rol');
         const adminTabs = document.querySelectorAll('.admin-tabs .tab-btn');
         adminTabs.forEach(btn => {
-            if (userRol !== 'encargado' && btn.dataset.tab !== 'tab-diccionario') {
-                btn.style.display = 'none';
-            } else {
+            if (userRol === 'encargado') {
                 btn.style.display = 'inline-block';
+            } else if (userRol === 'produccion' && btn.dataset.tab === 'tab-produccion') {
+                btn.style.display = 'inline-block';
+            } else if (btn.dataset.tab === 'tab-diccionario') {
+                btn.style.display = 'inline-block';
+            } else {
+                btn.style.display = 'none';
             }
         });
         
         if (userRol !== 'encargado') {
-            const diccBtn = document.querySelector('.tab-btn[data-tab="tab-diccionario"]');
-            if(diccBtn) diccBtn.click();
+            let activeTab = 'tab-diccionario';
+            if (userRol === 'produccion') activeTab = 'tab-produccion';
+            
+            const targetBtn = document.querySelector(`.tab-btn[data-tab="${activeTab}"]`);
+            if(targetBtn) targetBtn.click();
         }
         
         loadAdminData();
