@@ -216,20 +216,34 @@ function showApp(userName, userRol) {
     if(userRol === 'produccion') rolText = ' (Producción)';
     userDisplay.textContent = userName + rolText;
     
-    adminToggleBtn.classList.remove('hidden');
+    adminToggleBtn.classList.add('hidden');
+    
     if(userRol === 'encargado') {
+        adminToggleBtn.classList.remove('hidden');
         downloadBtn.classList.remove('hidden');
         clearMonthBtn.classList.remove('hidden');
         if(historyAgostoBtn) historyAgostoBtn.classList.remove('hidden');
+        if(laboratorioToggleBtn) laboratorioToggleBtn.classList.remove('hidden');
+    } else if (userRol === 'produccion') {
+        downloadBtn.classList.add('hidden');
+        clearMonthBtn.classList.add('hidden');
+        if(historyAgostoBtn) historyAgostoBtn.classList.add('hidden');
+        
+        // En lugar del Admin, le mostramos un botón directo
+        if(laboratorioToggleBtn) {
+            laboratorioToggleBtn.classList.remove('hidden');
+            laboratorioToggleBtn.innerHTML = "🧪 Prod. Lovo (Báscula)";
+            // Redirigir el click de Laboratorio al Panel de Admin -> Producción Lovo
+            laboratorioToggleBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Evitar que dispare toggleLaboratorioView si ya estaba
+                toggleAdminView();
+            };
+        }
     } else {
         downloadBtn.classList.add('hidden');
         clearMonthBtn.classList.add('hidden');
         if(historyAgostoBtn) historyAgostoBtn.classList.add('hidden');
-    }
-    
-    if(userRol === 'encargado' || userRol === 'produccion') {
-        if(laboratorioToggleBtn) laboratorioToggleBtn.classList.remove('hidden');
-    } else {
         if(laboratorioToggleBtn) laboratorioToggleBtn.classList.add('hidden');
     }
     
