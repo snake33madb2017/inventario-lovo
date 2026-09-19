@@ -2168,3 +2168,139 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+// --- LÓGICA DE PRODUCCIÓN Y BÁSCULA ---
+document.addEventListener('DOMContentLoaded', () => {
+    
+    // Cargar recetas al iniciar si estamos logueados
+    function cargarRecetasProduccion() {
+        const token = localStorage.getItem('token');
+        if(!token) return;
+        
+        fetch(`${API_URL}/api/produccion/recetas`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById('select-receta-prod');
+            if(!select) return;
+            select.innerHTML = '<option value="">Selecciona Receta...</option>';
+            if(Array.isArray(data)) {
+                data.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.textContent = `${r.nombre} (Stock: ${r.stock_actual_ml}ml)`;
+                    select.appendChild(opt);
+                });
+            }
+        })
+        .catch(err => console.error("Error cargando recetas:", err));
+    }
+    
+    // Configurar pesos
+    const formPesos = document.getElementById('form-pesos-botella');
+    if (formPesos) {
+        formPesos.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const producto = document.getElementById('peso-producto').value;
+            const peso_llena_gr = parseFloat(document.getElementById('peso-llena').value);
+            const peso_tara_gr = parseFloat(document.getElementById('peso-tara').value);
+            const volumen_nominal_ml = parseFloat(document.getElementById('volumen-nominal').value);
+            
+            fetch(`${API_URL}/api/produccion/pesos`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                },
+                body: JSON.stringify({producto, peso_llena_gr, peso_tara_gr, volumen_nominal_ml})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success'){
+                    showToast('Pesos configurados correctamente', 'success');
+                    formPesos.reset();
+                } else {
+                    showToast('Error configurando pesos', 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Error de conexión', 'error');
+            });
+        });
+    }
+    
+    // Calculadora Báscula
+    const btnCalc = document.getElementById('btn-calcular-bascula');
+    if (btnCalc) {
+        btnCalc.addEventListener('click', () => {
+            const producto = document.getElementById('calc-peso-producto').value;
+            const peso_actual_gr = parseFloat(document.getElementById('calc-peso-actual').value);
+            
+            if(!producto || isNaN(peso_actual_gr)) {
+                showToast('Introduce producto y peso válido', 'error');
+                return;
+            }
+            
+            fetch(`${API_URL}/api/produccion/calcular_stock_bascula?producto=${encodeURIComponent(producto)}&peso_actual_gr=${peso_actual_gr}`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            })
+            .then(res => res.json())
+            .then(data => {
+                const resDiv = document.getElementById('resultado-bascula');
+                if(data.error) {
+                    resDiv.textContent = data.error;
+                    resDiv.style.color = '#ef4444';
+                } else {
+                    resDiv.textContent = `Queda ${(data.fraccion_restante * 100).toFixed(1)}% de botella. Equivale a ${data.ml_restantes}ml`;
+                    resDiv.style.color = '#10b981';
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    }
+    
+    // Ejecutar Producción
+    const formEjecutar = document.getElementById('form-ejecutar-produccion');
+    if (formEjecutar) {
+        formEjecutar.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const receta_id = parseInt(document.getElementById('select-receta-prod').value);
+            const multiplicador_lotes = parseFloat(document.getElementById('multiplicador-lotes').value);
+            
+            if(isNaN(receta_id) || isNaN(multiplicador_lotes)) {
+                showToast('Selecciona receta y lote', 'error');
+                return;
+            }
+            
+            fetch(`${API_URL}/api/produccion/ejecutar`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` 
+                },
+                body: JSON.stringify({receta_id, multiplicador_lotes})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success'){
+                    showToast(data.message, 'success');
+                    formEjecutar.reset();
+                    cargarRecetasProduccion(); // recargar para ver nuevo stock
+                } else {
+                    showToast(data.detail || 'Error al ejecutar', 'error');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('Error de conexión', 'error');
+            });
+        });
+    }
+    
+    // Cargar si ya hay token
+    if(localStorage.getItem('token')) {
+        setTimeout(cargarRecetasProduccion, 1000);
+    }
+});

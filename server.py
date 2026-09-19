@@ -110,6 +110,30 @@ class AjusteBalance(BaseModel):
     stock_actual: float
     precio: float
 
+from typing import List
+
+class IngredienteProduccion(BaseModel):
+    nombre: str
+    cantidad_requerida_ml: float
+    es_produccion: bool = False
+
+class NuevaRecetaProduccion(BaseModel):
+    nombre: str
+    categoria: str
+    rendimiento_ml: float
+    procedimiento: str
+    ingredientes: List[IngredienteProduccion]
+
+class EjecutarProduccion(BaseModel):
+    receta_id: int
+    multiplicador_lotes: float = 1.0
+
+class ActualizarPesosBotella(BaseModel):
+    producto: str
+    peso_llena_gr: float
+    peso_tara_gr: float
+    volumen_nominal_ml: float
+
 last_registro_time = 0.0
 last_registro_payload = ""
 
@@ -161,7 +185,7 @@ def init_db():
             real_name TEXT
         )
     ''')
-    # Recetas
+    # Recetas (antiguo, deprecado para producción pero se mantiene para legacy)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS recetas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -170,6 +194,37 @@ def init_db():
             procedimiento TEXT,
             coste TEXT,
             categoria TEXT
+        )
+    ''')
+    
+    # Produccion Lovo
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS recetas_produccion (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE,
+            categoria TEXT,
+            rendimiento_ml REAL,
+            procedimiento TEXT
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS produccion_ingredientes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            receta_id INTEGER,
+            ingrediente_nombre TEXT,
+            cantidad_requerida_ml REAL,
+            es_produccion BOOLEAN DEFAULT 0,
+            FOREIGN KEY(receta_id) REFERENCES recetas_produccion(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS stock_produccion (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            receta_id INTEGER UNIQUE,
+            stock_actual_ml REAL DEFAULT 0.0,
+            FOREIGN KEY(receta_id) REFERENCES recetas_produccion(id)
         )
     ''')
     
@@ -217,6 +272,14 @@ def init_db():
         conn.commit()
     except Exception:
         pass # Column already exists
+        
+    try:
+        cursor.execute("ALTER TABLE stock_referencia ADD COLUMN peso_llena_gr REAL DEFAULT 1400.0")
+        cursor.execute("ALTER TABLE stock_referencia ADD COLUMN peso_tara_gr REAL DEFAULT 400.0")
+        cursor.execute("ALTER TABLE stock_referencia ADD COLUMN volumen_nominal_ml REAL DEFAULT 1000.0")
+        conn.commit()
+    except Exception:
+        pass # Columns already exist
         
     load_stock_referencia(conn)
     inicializar_stock_julio(conn)
@@ -1461,6 +1524,137 @@ def producir_receta(rid: int, user: dict = Depends(check_is_produccion_or_admin)
     conn.commit()
     conn.close()
     return {"status": "success", "message": "Lote registrado en inventario"}
+
+@app.get("/api/produccion/recetas")
+def get_recetas_produccion(user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM recetas_produccion")
+    recetas = [dict(r) for r in cursor.fetchall()]
+    for r in recetas:
+        cursor.execute("SELECT * FROM produccion_ingredientes WHERE receta_id = ?", (r["id"],))
+        r["ingredientes"] = [dict(i) for i in cursor.fetchall()]
+        
+        cursor.execute("SELECT stock_actual_ml FROM stock_produccion WHERE receta_id = ?", (r["id"],))
+        st_row = cursor.fetchone()
+        r["stock_actual_ml"] = st_row["stock_actual_ml"] if st_row else 0.0
+        
+    conn.close()
+    return recetas
+
+@app.post("/api/produccion/recetas")
+def crear_receta_produccion(req: NuevaRecetaProduccion, user: dict = Depends(get_current_user)):
+    if user.get("rol") not in ["encargado", "produccion"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            INSERT INTO recetas_produccion (nombre, categoria, rendimiento_ml, procedimiento)
+            VALUES (?, ?, ?, ?)
+        ''', (req.nombre, req.categoria, req.rendimiento_ml, req.procedimiento))
+        receta_id = cursor.lastrowid
+        for ing in req.ingredientes:
+            cursor.execute('''
+                INSERT INTO produccion_ingredientes (receta_id, ingrediente_nombre, cantidad_requerida_ml, es_produccion)
+                VALUES (?, ?, ?, ?)
+            ''', (receta_id, ing.nombre, ing.cantidad_requerida_ml, ing.es_produccion))
+        cursor.execute('INSERT INTO stock_produccion (receta_id, stock_actual_ml) VALUES (?, 0)', (receta_id,))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+    return {"status": "success", "id": receta_id}
+
+@app.post("/api/produccion/ejecutar")
+def ejecutar_produccion(req: EjecutarProduccion, user: dict = Depends(get_current_user)):
+    if user.get("rol") not in ["encargado", "produccion", "camarero"]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM recetas_produccion WHERE id = ?", (req.receta_id,))
+    receta = cursor.fetchone()
+    if not receta:
+        raise HTTPException(status_code=404, detail="Receta no encontrada")
+        
+    cursor.execute("SELECT * FROM produccion_ingredientes WHERE receta_id = ?", (req.receta_id,))
+    ingredientes = cursor.fetchall()
+    
+    now = datetime.now()
+    fecha = now.strftime("%d/%m/%Y")
+    hora = now.strftime("%H:%M:%S")
+
+    for ing in ingredientes:
+        cantidad_total = ing["cantidad_requerida_ml"] * req.multiplicador_lotes
+        if ing["es_produccion"]:
+            cursor.execute("UPDATE stock_produccion SET stock_actual_ml = stock_actual_ml - ? WHERE receta_id = (SELECT id FROM recetas_produccion WHERE nombre = ?)", (cantidad_total, ing["ingrediente_nombre"]))
+        else:
+            cursor.execute("SELECT volumen_nominal_ml, peso_llena_gr, peso_tara_gr, categoria FROM stock_referencia WHERE producto = ?", (ing["ingrediente_nombre"],))
+            ref = cursor.fetchone()
+            if ref:
+                vol_nominal = ref["volumen_nominal_ml"] if ref["volumen_nominal_ml"] else 1000.0
+                fraccion = cantidad_total / vol_nominal
+                
+                cursor.execute('''
+                    INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario, ubicacion)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (fecha, hora, ref["categoria"], ing["ingrediente_nombre"], fraccion, 0, str(round(fraccion, 2)), f'{user.get("nombre")} (Lab)', 'Producción'))
+
+    rendimiento_total = receta["rendimiento_ml"] * req.multiplicador_lotes
+    cursor.execute("UPDATE stock_produccion SET stock_actual_ml = stock_actual_ml + ? WHERE receta_id = ?", (rendimiento_total, req.receta_id))
+    
+    conn.commit()
+    conn.close()
+    return {"status": "success", "message": f"Producción de {receta['nombre']} ejecutada"}
+
+@app.post("/api/produccion/pesos")
+def actualizar_pesos_botella(req: ActualizarPesosBotella, user: dict = Depends(get_current_user)):
+    if user.get("rol") != "encargado":
+        raise HTTPException(status_code=403, detail="Solo encargado")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE stock_referencia 
+        SET peso_llena_gr = ?, peso_tara_gr = ?, volumen_nominal_ml = ? 
+        WHERE producto = ?
+    ''', (req.peso_llena_gr, req.peso_tara_gr, req.volumen_nominal_ml, req.producto))
+    conn.commit()
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/api/produccion/calcular_stock_bascula")
+def calcular_stock_bascula(producto: str, peso_actual_gr: float):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT peso_llena_gr, peso_tara_gr, volumen_nominal_ml FROM stock_referencia WHERE producto = ?", (producto,))
+    ref = cursor.fetchone()
+    conn.close()
+    
+    if not ref:
+        raise HTTPException(status_code=404, detail="Producto no encontrado")
+        
+    tara = ref["peso_tara_gr"] if ref["peso_tara_gr"] else 400.0
+    llena = ref["peso_llena_gr"] if ref["peso_llena_gr"] else 1400.0
+    vol_nom = ref["volumen_nominal_ml"] if ref["volumen_nominal_ml"] else 1000.0
+    
+    peso_neto = peso_actual_gr - tara
+    if peso_neto < 0: peso_neto = 0
+    
+    peso_neto_total = llena - tara
+    if peso_neto_total <= 0:
+        return {"error": "Pesos de referencia inválidos"}
+        
+    fraccion_restante = peso_neto / peso_neto_total
+    ml_restantes = fraccion_restante * vol_nom
+    
+    return {
+        "producto": producto,
+        "fraccion_restante": round(fraccion_restante, 4),
+        "ml_restantes": round(ml_restantes, 2)
+    }
 
 # Servir archivos estáticos del frontend en la raíz
 app.mount("/", StaticFiles(directory=".", html=True), name="static")
