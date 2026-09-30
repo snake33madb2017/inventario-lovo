@@ -2073,6 +2073,9 @@ if ('serviceWorker' in navigator) {
                         posData[cat].push(name);
                     }
                     
+                    if (!window.posStockBase) window.posStockBase = {};
+                    window.posStockBase[name] = qty;
+                    
                     // Re-render
                     const currentCat = document.getElementById('category-dropdown');
                     if (currentCat) {
