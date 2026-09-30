@@ -2327,7 +2327,13 @@ const posSearchInput = document.getElementById('pos-search-input');
                 if(pLower.includes('cristal') || pLower.includes('copa') || pLower.includes('vaso')) imgName = 'cristaleria_gen.jpg';
                 if(pLower.includes('garrafa') || pLower.includes('sirope')) imgName = 'garrafa_gen.jpg';
                 
-                let actualQty = window.posStockBase ? (window.posStockBase[p] || 0) : 0;
+                let totalQty = 0;
+                if (typeof recentItems !== 'undefined') {
+                    const prodLowerForSearch = pLower;
+                    const registrosHoy = recentItems.filter(r => r.producto && r.producto.toLowerCase() === prodLowerForSearch);
+                    totalQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad_dictada !== undefined ? curr.cantidad_dictada : curr.cantidad) || 0), 0);
+                }
+                totalQty = Math.round(totalQty * 1000) / 1000;
                 
                 const div = document.createElement('div');
                 div.className = 'pos-card';
@@ -2335,7 +2341,7 @@ const posSearchInput = document.getElementById('pos-search-input');
                     <img src="${imgName}" alt="${p}" onerror="this.src='logo_lovo.png'">
                     <span class="pos-title">${p}</span>
                     <div style="background: rgba(0,255,0,0.15); color: #4ade80; width: 90%; padding: 4px 0; border-radius: 6px; text-align: center; font-size: 0.85rem; margin-top: 5px; font-weight: bold; border: 1px solid rgba(74, 222, 128, 0.3);">
-                        Cant: ${actualQty > 0 ? actualQty : 0}
+                        Cant: ${totalQty > 0 ? totalQty : 0}
                     </div>
                 `;
                 div.onclick = () => openPosModal(p);
