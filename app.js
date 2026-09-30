@@ -2020,9 +2020,9 @@ if ('serviceWorker' in navigator) {
     if (btnCreatePos) {
         btnCreatePos.addEventListener('click', () => {
             // Populate category dropdown
-            if (newCatDropdown && window.categorias) {
+            if (newCatDropdown && categorias) {
                 newCatDropdown.innerHTML = '';
-                window.categorias.forEach(cat => {
+                categorias.forEach(cat => {
                     const opt = document.createElement('option');
                     opt.value = cat;
                     opt.textContent = cat;
