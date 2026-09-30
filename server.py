@@ -595,15 +595,22 @@ def añadir_registro(registro: Registro, user: dict = Depends(get_current_user))
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Safety net: si viene sin categoría, intentar buscarla o poner General
+        # Safety net and dynamic insert for new products
         cat_final = registro.categoria
-        if not cat_final or cat_final.strip() == "":
-            cursor.execute('SELECT categoria FROM stock_referencia WHERE producto = ?', (registro.producto,))
-            row = cursor.fetchone()
-            if row:
+        cursor.execute('SELECT categoria FROM stock_referencia WHERE producto = ?', (registro.producto,))
+        row = cursor.fetchone()
+        
+        if row:
+            if not cat_final or cat_final.strip() == "":
                 cat_final = row['categoria']
-            else:
+        else:
+            if not cat_final or cat_final.strip() == "":
                 cat_final = "General"
+            # Insert into stock_referencia dynamically
+            cursor.execute('''
+                INSERT INTO stock_referencia (producto, categoria, stock_anterior, precio_unitario, stock_ideal)
+                VALUES (?, ?, 0.0, 0.0, 0.0)
+            ''', (registro.producto, cat_final))
 
         cursor.execute('''
             INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario, ubicacion)

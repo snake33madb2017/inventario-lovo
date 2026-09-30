@@ -138,6 +138,12 @@
                 <button id="mode-caja-btn" class="mode-btn active">📱 Caja</button>
             </div>
 
+            
+            <div class="pos-controls" style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="pos-search-input" placeholder="🔍 Buscar producto rápido..." autocomplete="off" style="flex: 1; font-size: 1.1rem; padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary-color); border-radius: 8px;">
+                <button id="pos-create-new-btn" style="background: var(--primary-color); border: none; padding: 10px 15px; border-radius: 8px; color: var(--bg-dark); font-weight: bold; cursor: pointer; white-space: nowrap;">+ Crear Ítem</button>
+            </div>
+
             <div class="category-selector">
                 <label for="category-dropdown">Categoría Activa</label>
                 <div class="category-controls">
@@ -482,5 +488,31 @@
     <div id="toast" class="toast">Notificación</div>
 
     <script src="app.js?v=16"></script>
+
+    <!-- Modal Crear Producto -->
+    <div id="create-product-modal" class="modal-overlay hidden" style="z-index: 10000; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center;">
+        <div class="modal-content" style="background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--primary-color); width: 90%; max-width: 400px;">
+            <h3 style="color: var(--primary-color); margin-top: 0; text-align: center;">Crear Nuevo Producto</h3>
+            <div style="margin-bottom: 15px;">
+                <label>Nombre del Producto</label>
+                <input type="text" id="new-prod-name" placeholder="Ej: Licor Extra Fuerte" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; box-sizing: border-box;">
+            </div>
+            <div style="margin-bottom: 15px;">
+                <label>Categoría</label>
+                <select id="new-prod-cat" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; box-sizing: border-box;">
+                    <!-- Llenado por JS -->
+                </select>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label>Cantidad (Botellas / Fracciones)</label>
+                <input type="number" id="new-prod-qty" step="0.1" value="1" min="0" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" id="close-create-modal" style="flex: 1; padding: 12px; border: 1px solid #ef4444; color: #ef4444; background: transparent; border-radius: 8px; cursor: pointer;">Cancelar</button>
+                <button type="button" id="save-create-modal" style="flex: 1; padding: 12px; background: var(--primary-color); color: var(--bg-dark); border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">Guardar</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

@@ -2009,6 +2009,93 @@ if ('serviceWorker' in navigator) {
 
 
 // --- POS / MODO CAJA LOGIC ---
+
+    // --- Create Product Modal Logic ---
+    const btnCreatePos = document.getElementById('pos-create-new-btn');
+    const createModal = document.getElementById('create-product-modal');
+    const closeCreateBtn = document.getElementById('close-create-modal');
+    const saveCreateBtn = document.getElementById('save-create-modal');
+    const newCatDropdown = document.getElementById('new-prod-cat');
+    
+    if (btnCreatePos) {
+        btnCreatePos.addEventListener('click', () => {
+            // Populate category dropdown
+            if (newCatDropdown && window.categorias) {
+                newCatDropdown.innerHTML = '';
+                window.categorias.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.textContent = cat;
+                    newCatDropdown.appendChild(opt);
+                });
+            }
+            createModal.style.display = 'flex';
+        });
+    }
+    if (closeCreateBtn) {
+        closeCreateBtn.addEventListener('click', () => {
+            createModal.style.display = 'none';
+        });
+    }
+    if (saveCreateBtn) {
+        saveCreateBtn.addEventListener('click', async () => {
+            const name = document.getElementById('new-prod-name').value.trim();
+            const cat = newCatDropdown.value;
+            const qty = parseFloat(document.getElementById('new-prod-qty').value);
+            
+            if (!name || isNaN(qty)) {
+                alert("Completa el nombre y la cantidad válida.");
+                return;
+            }
+            
+            saveCreateBtn.textContent = 'Guardando...';
+            saveCreateBtn.disabled = true;
+            
+            const payload = {
+                categoria: cat,
+                producto: name,
+                cantidad_dictada: qty,
+                usuario: localStorage.getItem('usuario_lovo_nombre') || "Desconocido",
+                ubicacion: document.getElementById('location-dropdown') ? document.getElementById('location-dropdown').value : 'SALA'
+            };
+            
+            try {
+                const res = await fetch(`${SERVER_URL}/api/registro`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                
+                if (res.ok) {
+                    // Update posData locally so it appears immediately!
+                    if (!posData[cat]) posData[cat] = [];
+                    if (!posData[cat].includes(name)) {
+                        posData[cat].push(name);
+                    }
+                    
+                    // Re-render
+                    const currentCat = document.getElementById('category-dropdown');
+                    if (currentCat) {
+                        currentCat.value = cat;
+                        renderPosGrid(cat);
+                    }
+                    
+                    createModal.style.display = 'none';
+                    document.getElementById('new-prod-name').value = '';
+                    document.getElementById('new-prod-qty').value = '1';
+                } else {
+                    alert("Error al guardar en el servidor.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error de red.");
+            } finally {
+                saveCreateBtn.textContent = 'Guardar';
+                saveCreateBtn.disabled = false;
+            }
+        });
+    }
+
 let posData = {};
 let currentPosProduct = '';
 
