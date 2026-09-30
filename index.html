@@ -141,7 +141,7 @@
             
             <div class="pos-controls" style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
                 <input type="text" id="pos-search-input" placeholder="🔍 Buscar producto rápido..." autocomplete="off" style="flex: 1; font-size: 1.1rem; padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary-color); border-radius: 8px;">
-                <button id="pos-create-new-btn" style="background: var(--primary-color); border: none; padding: 10px 15px; border-radius: 8px; color: var(--bg-dark); font-weight: bold; cursor: pointer; white-space: nowrap;">+ Crear Ítem</button>
+                <button id="pos-create-new-btn" style="background: linear-gradient(135deg, var(--primary-color) 0%, #d97706 100%); border: none; padding: 10px 20px; border-radius: 12px; color: var(--bg-dark); font-weight: bold; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); transition: transform 0.2s ease, box-shadow 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(245, 158, 11, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(245, 158, 11, 0.4)';">✨ Crear Ítem</button>
             </div>
 
             <div class="category-selector">
@@ -494,7 +494,7 @@
 
     <div id="toast" class="toast">Notificación</div>
 
-    <script src="app.js?v=17"></script>
+
 
     <!-- Modal Crear Producto -->
     <div id="create-product-modal" class="modal-overlay hidden" style="z-index: 10000; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center;">
@@ -521,5 +521,6 @@
         </div>
     </div>
 
+    <script src="app.js?v=17"></script>
 </body>
 </html>
