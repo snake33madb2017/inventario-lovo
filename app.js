@@ -2099,10 +2099,14 @@ if ('serviceWorker' in navigator) {
                     if (!window.posStockBase) window.posStockBase = {};
                     window.posStockBase[finalName] = qty;
                     
-                    // Re-render
+                    // Re-render handled by fetchInventarioHoy
                     const currentCat = document.getElementById('category-dropdown');
                     if (currentCat) {
                         currentCat.value = cat;
+                    }
+                    if (typeof fetchInventarioHoy === 'function') {
+                        await fetchInventarioHoy();
+                    } else {
                         renderPosGrid(cat);
                     }
                     
@@ -2383,7 +2387,7 @@ const posSearchInput = document.getElementById('pos-search-input');
             if (typeof recentItems !== 'undefined') {
                 const prodLower = prod.toLowerCase();
                 const registrosHoy = recentItems.filter(r => r.producto && r.producto.toLowerCase() === prodLower);
-                totalQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+                totalQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad_dictada) || 0), 0);
             }
             
             // Si hay un valor filtrado por ubicacion, podriamos usarlo, pero por ahora sumamos todo lo de hoy
@@ -2419,7 +2423,7 @@ const posSearchInput = document.getElementById('pos-search-input');
         if (typeof recentItems !== 'undefined') {
             const prodLower = producto.toLowerCase();
             const registrosHoy = recentItems.filter(r => r.producto && r.producto.toLowerCase() === prodLower);
-            currentQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad) || 0), 0);
+            currentQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad_dictada) || 0), 0);
         }
         
         currentQty = Math.round(currentQty * 1000) / 1000;
