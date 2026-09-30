@@ -2387,7 +2387,7 @@ const posSearchInput = document.getElementById('pos-search-input');
             if (typeof recentItems !== 'undefined') {
                 const prodLower = prod.toLowerCase();
                 const registrosHoy = recentItems.filter(r => r.producto && r.producto.toLowerCase() === prodLower);
-                totalQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad_dictada) || 0), 0);
+                totalQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad_dictada !== undefined ? curr.cantidad_dictada : curr.cantidad) || 0), 0);
             }
             
             // Si hay un valor filtrado por ubicacion, podriamos usarlo, pero por ahora sumamos todo lo de hoy
@@ -2423,7 +2423,7 @@ const posSearchInput = document.getElementById('pos-search-input');
         if (typeof recentItems !== 'undefined') {
             const prodLower = producto.toLowerCase();
             const registrosHoy = recentItems.filter(r => r.producto && r.producto.toLowerCase() === prodLower);
-            currentQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad_dictada) || 0), 0);
+            currentQty = registrosHoy.reduce((acc, curr) => acc + (parseFloat(curr.cantidad_dictada !== undefined ? curr.cantidad_dictada : curr.cantidad) || 0), 0);
         }
         
         currentQty = Math.round(currentQty * 1000) / 1000;
