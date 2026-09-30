@@ -1022,12 +1022,16 @@ def obtener_comparativa(fecha: Optional[str] = None, user: dict = Depends(check_
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/descargar/hoy")
+@app.get("/api/admin/descargar-excel-hoy")
 def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_is_admin)):
     try:
-        from openpyxl import load_workbook
-        import os
+        from openpyxl import Workbook
+        from openpyxl.utils.dataframe import dataframe_to_rows
+        from openpyxl.styles import Font, Alignment, PatternFill
+        import pandas as pd
         from fastapi.responses import FileResponse
+        import os
+        from datetime import datetime
         
         if not fecha:
             now = datetime.now()
@@ -1037,110 +1041,107 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             fecha_busqueda = fecha
             fecha_archivo = fecha.replace("/", "-")
             
-        template_file = "Plantilla_Inventario.xlsx"
-        if not os.path.exists(template_file):
-            raise HTTPException(status_code=404, detail="Plantilla_Inventario.xlsx no encontrada")
-            
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Cargar diccionario
-        cursor.execute("SELECT alias, real_name FROM diccionario")
-        dic_rows = cursor.fetchall()
-        diccionario = {r['alias'].lower(): r['real_name'].lower() for r in dic_rows}
-        for r in dic_rows:
-            diccionario[r['real_name'].lower()] = r['real_name'].lower()
-            
-        # Cargar todos los productos de stock referencia
-        cursor.execute("SELECT producto FROM stock_referencia")
-        for r in cursor.fetchall():
-            prod_clean = r['producto'].strip().lower()
-            if prod_clean not in diccionario:
-                diccionario[prod_clean] = prod_clean
-
-        # Cargar registros del día
-        cursor.execute('SELECT * FROM registros WHERE fecha = ?', (fecha_busqueda,))
-        rows = cursor.fetchall()
+        # Obtenemos producto, categoria, stock_anterior y precio_unitario
+        cursor.execute("SELECT producto, categoria, stock_anterior, precio_unitario FROM stock_referencia")
+        productos = cursor.fetchall()
+        
+        cursor.execute("SELECT producto, botellas_llenas, restante_porcentaje FROM registros WHERE fecha = ?", (fecha_busqueda,))
+        counts = cursor.fetchall()
         conn.close()
         
-        stock_act = {}
-        auditors = {}
-        for r_obj in rows:
-            row = dict(r_obj)
-            prod_raw = row['producto'].strip().lower()
-            prod_norm = diccionario.get(prod_raw, prod_raw)
-            ubicacion = row.get('ubicacion', 'General')
-            
-            b = row['botellas_llenas']
-            r_str = row['restante_porcentaje']
+        conteo = {}
+        for p, b, r_str in counts:
+            p_lower = p.strip().lower()
+            b = b or 0
             r_val = 0.0
             if r_str and r_str != '-':
                 try:
-                    rest_str_clean = str(r_str).strip()
-                    if '%' in rest_str_clean:
-                        r_val = float(rest_str_clean.replace('%', '')) / 100.0
-                    else:
-                        r_val = float(rest_str_clean)
-                        if r_val > 1:
-                            r_val = r_val / 100.0
+                    r_val = float(str(r_str).replace('%', '').strip())
+                    if r_val > 1: r_val = r_val / 100.0
                 except: pass
-            total_qty = b + r_val
+            if p_lower not in conteo:
+                conteo[p_lower] = 0
+            conteo[p_lower] += (b + r_val)
             
-            if prod_norm not in stock_act: 
-                stock_act[prod_norm] = {}
-                auditors[prod_norm] = set()
-            if ubicacion not in stock_act[prod_norm]:
-                stock_act[prod_norm][ubicacion] = 0.0
-                
-            stock_act[prod_norm][ubicacion] += total_qty
-            if row['usuario']:
-                auditors[prod_norm].add(row['usuario'])
+        datos = []
+        for p, cat, stock_ant, precio_u in productos:
+            p_clean = p.strip()
+            cantidad = conteo.get(p_clean.lower(), 0)
+            stock_ant_val = float(stock_ant) if stock_ant else 0.0
+            precio_val = float(precio_u) if precio_u else 0.0
             
-        # Modificar Excel
-        from openpyxl.comments import Comment
-        wb = load_workbook(template_file)
-        ignore_words = {"producto", "total", "precio", "articulos", "cristaleria", "producciones", "botellas", "garrafas", "observaciones", "categoría", "usuario", "cantidad"}
+            datos.append({
+                'Categoría': cat,
+                'Producto': p_clean,
+                'Stock Anterior': stock_ant_val,
+                'Cantidad Contada': cantidad,
+                'Diferencia': '', # Formula will be injected later
+                'Proveedor': '',
+                'Precio Unitario': precio_val,
+                'Costo Total': '' # Formula will be injected later
+            })
+            
+        df = pd.DataFrame(datos)
         
-        for ws in wb.worksheets:
-            header_col_map = {}
-            if ws.title.lower() == 'cristaleria':
-                for r in ws.iter_rows(min_row=1, max_row=10):
-                    for cell in r:
-                        if cell.value and isinstance(cell.value, str):
-                            val = cell.value.strip().upper()
-                            if val in ['DJ', 'BARRA CAZA', 'BARRA CUEVA', 'SALA']:
-                                header_col_map[val] = cell.column
-                                
-            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
-                for cell in row:
-                    if cell.value and isinstance(cell.value, str):
-                        cell_norm = cell.value.strip().lower()
-                        if cell_norm not in ignore_words and cell_norm in diccionario:
-                            real_prod = diccionario[cell_norm]
-                            
-                            if header_col_map:
-                                for ubi, col_idx in header_col_map.items():
-                                    target_cell = ws.cell(row=cell.row, column=col_idx)
-                                    if type(target_cell).__name__ != 'MergedCell':
-                                        qty = stock_act.get(real_prod, {}).get(ubi, 0.0)
-                                        if qty > 0:
-                                            target_cell.value = qty
-                            else:
-                                right_cell = ws.cell(row=cell.row, column=cell.column + 1)
-                                if type(right_cell).__name__ != 'MergedCell':
-                                    if not (isinstance(right_cell.value, str) and right_cell.value.startswith('=')):
-                                        total_prod = sum(stock_act.get(real_prod, {}).values())
-                                        right_cell.value = total_prod
-                            
-                            right_cell_auditor = ws.cell(row=cell.row, column=cell.column + 1)
-                            if type(right_cell_auditor).__name__ != 'MergedCell':
-                                if real_prod in auditors and auditors[real_prod]:
-                                    auditor_names = ", ".join(auditors[real_prod])
-                                    right_cell_auditor.comment = Comment(f"Contado por: {auditor_names}", "Sistema")
-
-
+        wb = Workbook()
+        wb.remove(wb.active)
+        
+        categorias = df['Categoría'].fillna('Sin Categoría').unique()
+        header_fill = PatternFill(start_color="4F81BD", end_color="4F81BD", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+        total_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
+        
+        for c in categorias:
+            cat_name = str(c)[:31].replace('/', '_').replace('\\', '_')
+            if not cat_name.strip(): cat_name = "Varios"
+            ws = wb.create_sheet(title=cat_name)
+            
+            df_cat = df[df['Categoría'] == c].copy()
+            df_cat = df_cat.drop(columns=['Categoría'])
+            
+            # Encabezados
+            headers = list(df_cat.columns)
+            ws.append(headers)
+            
+            row_idx = 2
+            for index, row in df_cat.iterrows():
+                row_data = list(row)
+                # Formula Diferencia = Cantidad Contada (C) - Stock Anterior (B)
+                row_data[3] = f"=C{row_idx}-B{row_idx}"
+                # Formula Costo Total = Cantidad Contada (C) * Precio Unitario (F)
+                row_data[6] = f"=C{row_idx}*F{row_idx}"
+                ws.append(row_data)
+                row_idx += 1
+                
+            # Fila de Totales
+            ws.append(["TOTALES", f"=SUM(B2:B{row_idx-1})", f"=SUM(C2:C{row_idx-1})", f"=SUM(D2:D{row_idx-1})", "", "", f"=SUM(G2:G{row_idx-1})"])
+            
+            # Estilos encabezados
+            for cell in ws[1]:
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = Alignment(horizontal="center")
+                
+            # Estilos fila de totales
+            for cell in ws[row_idx]:
+                cell.font = Font(bold=True)
+                cell.fill = total_fill
+                
+            # Anchos
+            ws.column_dimensions['A'].width = 40 # Producto
+            ws.column_dimensions['B'].width = 15 # Stock Anterior
+            ws.column_dimensions['C'].width = 18 # Cantidad Contada
+            ws.column_dimensions['D'].width = 15 # Diferencia
+            ws.column_dimensions['E'].width = 25 # Proveedor
+            ws.column_dimensions['F'].width = 15 # Precio Unitario
+            ws.column_dimensions['G'].width = 20 # Costo Total
+            
         temp_file = f"Inventario_Cierre_{fecha_archivo}.xlsx"
         wb.save(temp_file)
+        
         return FileResponse(path=temp_file, filename=temp_file, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
