@@ -2169,7 +2169,65 @@ document.addEventListener('DOMContentLoaded', () => {
     const catDropdown = document.getElementById('category-dropdown');
     if (catDropdown) {
         
-    const posSearchInput = document.getElementById('pos-search-input');
+    
+    const editNameBtn = document.getElementById('pos-edit-name-btn');
+    const editNameContainer = document.getElementById('pos-edit-name-container');
+    const editNameInput = document.getElementById('pos-edit-name-input');
+    const saveNameBtn = document.getElementById('pos-save-name-btn');
+    
+    if (editNameBtn) {
+        editNameBtn.addEventListener('click', () => {
+            const title = document.getElementById('pos-modal-title');
+            editNameContainer.style.display = 'flex';
+            editNameInput.value = title.innerText;
+            title.style.display = 'none';
+            editNameBtn.style.display = 'none';
+            editNameInput.focus();
+        });
+    }
+    if (saveNameBtn) {
+        saveNameBtn.addEventListener('click', async () => {
+            const newName = editNameInput.value.trim();
+            const oldName = document.getElementById('pos-modal-title').innerText;
+            if (newName && newName !== oldName) {
+                saveNameBtn.innerText = '...';
+                try {
+                    const res = await fetch(`${SERVER_URL}/api/admin/rename`, {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ old_name: oldName, new_name: newName })
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        // Update globally in posData
+                        for (let cat in posData) {
+                            const idx = posData[cat].indexOf(oldName);
+                            if (idx !== -1) {
+                                posData[cat][idx] = newName;
+                            }
+                        }
+                        
+                        document.getElementById('pos-modal-title').innerText = newName;
+                        window.currentPosProduct = newName;
+                        
+                        // Re-render
+                        const catDropdown = document.getElementById('category-dropdown');
+                        if(catDropdown) renderPosGrid(catDropdown.value);
+                    } else {
+                        alert(data.message || "Error al renombrar");
+                    }
+                } catch (e) {
+                    alert("Error de red");
+                }
+                saveNameBtn.innerText = 'Guardar';
+            }
+            
+            document.getElementById('pos-modal-title').style.display = 'block';
+            editNameBtn.style.display = 'inline-block';
+            editNameContainer.style.display = 'none';
+        });
+    }
+const posSearchInput = document.getElementById('pos-search-input');
     if (posSearchInput) {
         posSearchInput.addEventListener('input', function(e) {
             const val = e.target.value.toLowerCase().trim();

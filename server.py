@@ -789,6 +789,34 @@ class AjusteIdeal(BaseModel):
     producto: str
     stock_ideal: float
 
+
+class RenameProduct(BaseModel):
+    old_name: str
+    new_name: str
+
+@app.post("/api/admin/rename")
+def rename_product(data: RenameProduct, user: dict = Depends(get_current_user)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if new name already exists
+        cursor.execute("SELECT id FROM stock_referencia WHERE producto = ?", (data.new_name,))
+        if cursor.fetchone():
+            conn.close()
+            return {"status": "error", "message": "Ya existe un producto con ese nombre"}
+            
+        # Update in stock_referencia
+        cursor.execute("UPDATE stock_referencia SET producto = ? WHERE producto = ?", (data.new_name, data.old_name))
+        # Update in historical records (registros)
+        cursor.execute("UPDATE registros SET producto = ? WHERE producto = ?", (data.new_name, data.old_name))
+        
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Producto renombrado exitosamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/catalogo")
 def obtener_catalogo(user: dict = Depends(check_is_admin)):
     try:
