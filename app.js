@@ -344,6 +344,8 @@ function updateOfflineUI() {
     if (!statusDiv) {
         statusDiv = document.createElement('div');
         statusDiv.id = 'offline-status-indicator';
+        statusDiv.style.cursor = 'pointer';
+        statusDiv.onclick = syncOfflineQueue;
         document.body.appendChild(statusDiv);
     }
     
@@ -394,6 +396,9 @@ async function syncOfflineQueue() {
     if (syncedCount > 0) {
         if (typeof showToast === 'function') showToast(`Se sincronizaron ${syncedCount} ítems pendientes.`);
         if (typeof fetchInventarioHoy === 'function') fetchInventarioHoy();
+    } else if (pendingQueue.length > 0) {
+        // Retry automatically in 10 seconds if it failed
+        setTimeout(syncOfflineQueue, 10000);
     }
 }
 // -------------------------
