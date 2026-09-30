@@ -2047,13 +2047,31 @@ if ('serviceWorker' in navigator) {
                 alert("Completa el nombre y la cantidad válida.");
                 return;
             }
+            let finalName = name;
+            
+            let existsInOtherCat = false;
+            if (typeof posData !== 'undefined') {
+                for (let c in posData) {
+                    if (c !== cat && posData[c].includes(finalName)) {
+                        existsInOtherCat = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (existsInOtherCat) {
+                const addSuffix = confirm(`⚠️ El producto "${name}" ya existe en otra categoría.\n\nPara no pisarlo y poder contarlo por separado, ¿quieres registrarlo como "${name} (${cat})"?\n\n(Aceptar = Añadir sufijo, Cancelar = Usar el mismo y unificarlo)`);
+                if (addSuffix) {
+                    finalName = `${name} (${cat})`;
+                }
+            }
             
             saveCreateBtn.textContent = 'Guardando...';
             saveCreateBtn.disabled = true;
             
             const payload = {
                 categoria: cat,
-                producto: name,
+                producto: finalName,
                 cantidad_dictada: qty,
                 usuario: localStorage.getItem('usuario_lovo_nombre') || "Desconocido",
                 ubicacion: document.getElementById('location-dropdown') ? document.getElementById('location-dropdown').value : 'SALA'
@@ -2069,12 +2087,12 @@ if ('serviceWorker' in navigator) {
                 if (res.ok) {
                     // Update posData locally so it appears immediately!
                     if (!posData[cat]) posData[cat] = [];
-                    if (!posData[cat].includes(name)) {
-                        posData[cat].push(name);
+                    if (!posData[cat].includes(finalName)) {
+                        posData[cat].push(finalName);
                     }
                     
                     if (!window.posStockBase) window.posStockBase = {};
-                    window.posStockBase[name] = qty;
+                    window.posStockBase[finalName] = qty;
                     
                     // Re-render
                     const currentCat = document.getElementById('category-dropdown');
@@ -2099,10 +2117,10 @@ if ('serviceWorker' in navigator) {
                 
                 // Update posData locally so it appears immediately offline!
                 if (!posData[cat]) posData[cat] = [];
-                if (!posData[cat].includes(name)) posData[cat].push(name);
+                if (!posData[cat].includes(finalName)) posData[cat].push(finalName);
                 
                 if (!window.posStockBase) window.posStockBase = {};
-                window.posStockBase[name] = qty;
+                window.posStockBase[finalName] = qty;
                 
                 const currentCat = document.getElementById('category-dropdown');
                 if (currentCat) {
