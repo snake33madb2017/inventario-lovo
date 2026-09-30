@@ -811,12 +811,12 @@ def obtener_productos_historicos(user: dict = Depends(get_current_user)):
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT DISTINCT producto FROM registros')
+        cursor.execute('SELECT DISTINCT producto FROM stock_referencia')
         rows = cursor.fetchall()
         conn.close()
         lista = [r["producto"] for r in rows if r["producto"]]
         lista.sort()
-        return {"productos": lista}
+        return lista
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -827,59 +827,19 @@ def obtener_productos_pos(user: dict = Depends(get_current_user)):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Query distinct categories and products
-        cursor.execute("""
-            SELECT DISTINCT categoria, producto FROM registros WHERE categoria IS NOT NULL AND categoria != ''
-            UNION
-            SELECT DISTINCT categoria, producto FROM stock_referencia WHERE categoria IS NOT NULL AND categoria != ''
-            ORDER BY categoria, producto
-        """)
-        cat_rows = cursor.fetchall()
-        
-        # Query latest stock per product
-        cursor.execute("SELECT producto, botellas_llenas, restante_porcentaje, fecha FROM registros ORDER BY id ASC")
-        stock_rows = cursor.fetchall()
+        cursor.execute("SELECT DISTINCT categoria, producto FROM stock_referencia WHERE categoria IS NOT NULL AND categoria != ''")
+        rows = cursor.fetchall()
         conn.close()
         
-        pos_data = {}
-        for r in cat_rows:
-            cat = r["categoria"]
-            prod = r["producto"]
-            if not cat or not prod: continue
-            if cat not in pos_data: pos_data[cat] = []
-            if prod not in pos_data[cat]: pos_data[cat].append(prod)
-                
-        # Calculate latest stock
-        latest_dates = {}
-        stock_base = {}
-        for row in stock_rows:
-            prod = row['producto']
-            if not prod: continue
-            prod_key = prod.strip().lower()
-            fecha = row['fecha']
+        result = {}
+        for r in rows:
+            cat = r['categoria']
+            prod = r['producto']
+            if cat not in result:
+                result[cat] = []
+            result[cat].append(prod)
             
-            b = row['botellas_llenas'] or 0
-            r_str = row['restante_porcentaje']
-            r_val = 0.0
-            if r_str and r_str != '-':
-                try:
-                    rest_str_clean = str(r_str).strip()
-                    if '%' in rest_str_clean:
-                        r_val = float(rest_str_clean.replace('%', '')) / 100.0
-                    else:
-                        r_val = float(rest_str_clean)
-                        if r_val > 1: r_val = r_val / 100.0
-                except: pass
-                
-            qty = b + r_val
-            
-            if prod_key not in latest_dates or latest_dates[prod_key] != fecha:
-                latest_dates[prod_key] = fecha
-                stock_base[prod_key] = qty
-            else:
-                stock_base[prod_key] += qty
-                
-        return {"pos_data": pos_data, "stock_base": stock_base}
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
