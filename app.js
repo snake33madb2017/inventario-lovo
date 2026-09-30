@@ -2244,6 +2244,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         headers: getAuthHeaders(),
                         body: JSON.stringify({ old_name: oldName, new_name: newName })
                     });
+                    
+                    if (!res.ok) {
+                        const isJson = res.headers.get('content-type')?.includes('application/json');
+                        if (isJson) {
+                            const errData = await res.json();
+                            alert(errData.detail || errData.message || "Error en el servidor al renombrar.");
+                        } else {
+                            alert("El servidor se está reiniciando (actualizando). Por favor, espera unos segundos y vuelve a intentarlo.");
+                        }
+                        saveNameBtn.innerText = 'Guardar';
+                        return;
+                    }
+                    
                     const data = await res.json();
                     if (data.status === 'success') {
                         // Update globally in posData
@@ -2264,7 +2277,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert(data.message || "Error al renombrar");
                     }
                 } catch (e) {
-                    alert("Error de red");
+                    alert("Error de red. Puede que el servidor se esté reiniciando, inténtalo en unos segundos.");
                 }
                 saveNameBtn.innerText = 'Guardar';
             }
