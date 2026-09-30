@@ -816,7 +816,7 @@ def obtener_productos_historicos(user: dict = Depends(get_current_user)):
         conn.close()
         lista = [r["producto"] for r in rows if r["producto"]]
         lista.sort()
-        return lista
+        return {"productos": lista}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -827,19 +827,19 @@ def obtener_productos_pos(user: dict = Depends(get_current_user)):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        cursor.execute("SELECT DISTINCT categoria, producto FROM stock_referencia WHERE categoria IS NOT NULL AND categoria != ''")
+        cursor.execute("SELECT DISTINCT categoria, producto FROM stock_referencia WHERE categoria IS NOT NULL AND categoria != '' ORDER BY categoria, producto")
         rows = cursor.fetchall()
         conn.close()
         
-        result = {}
+        pos_data = {}
         for r in rows:
             cat = r['categoria']
             prod = r['producto']
-            if cat not in result:
-                result[cat] = []
-            result[cat].append(prod)
+            if cat not in pos_data:
+                pos_data[cat] = []
+            pos_data[cat].append(prod)
             
-        return result
+        return {"pos_data": pos_data, "stock_base": {}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
