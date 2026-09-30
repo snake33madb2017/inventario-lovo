@@ -2081,7 +2081,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Update POS when category changes
     const catDropdown = document.getElementById('category-dropdown');
     if (catDropdown) {
-        catDropdown.addEventListener('change', () => {
+        
+    const posSearchInput = document.getElementById('pos-search-input');
+    if (posSearchInput) {
+        posSearchInput.addEventListener('input', function(e) {
+            const val = e.target.value.toLowerCase();
+            const items = document.querySelectorAll('.pos-item');
+            items.forEach(item => {
+                const name = item.querySelector('h3').innerText.toLowerCase();
+                if (name.includes(val)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    catDropdown.addEventListener('change', () => {
             if (btnCaja && btnCaja.classList.contains('active')) {
                 renderPosGrid(catDropdown.value);
             }
@@ -2089,7 +2106,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     window.renderPosGrid = function(categoria) {
+        
+        if(posSearchInput) {
+            posSearchInput.value = '';
+        }
         const grid = document.getElementById('pos-grid');
+
         if (!grid) return;
         grid.innerHTML = '';
         let productos = [];
