@@ -281,6 +281,12 @@ def init_db():
     except Exception:
         pass # Columns already exist
         
+    try:
+        cursor.execute("ALTER TABLE registros ADD COLUMN ubicacion TEXT DEFAULT 'General'")
+        conn.commit()
+    except Exception:
+        pass # Column already exists
+        
     load_stock_referencia(conn)
     inicializar_stock_julio(conn)
     sincronizar_categorias(conn)
