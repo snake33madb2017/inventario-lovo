@@ -1623,3 +1623,27 @@ app.mount("/", StaticFiles(directory=".", html=True), name="static")
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+
+@app.get("/api/admin/force_db_sync")
+def force_db_sync():
+    try:
+        import json
+        with open('cat_mapping.json', 'r', encoding='utf-8') as f:
+            mapping = json.load(f)
+            
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        updated = 0
+        for prod, cat in mapping.items():
+            cursor.execute("UPDATE stock_referencia SET categoria = ? WHERE producto = ?", (cat, prod))
+            updated += cursor.rowcount
+            
+        cursor.execute("DELETE FROM registros")
+        cursor.execute("DELETE FROM RegistroInventario")
+        
+        conn.commit()
+        conn.close()
+        return {"status": "success", "categories_updated": updated, "message": "DB fully synced and cleaned"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
