@@ -731,7 +731,7 @@ async function fetchProductosHistoricos() {
 
 async function downloadExcel() {
     try {
-        const response = await fetch(`${SERVER_URL}/api/descargar/hoy`, { headers: getAuthHeaders() });
+        const response = await fetch(`${SERVER_URL}/api/admin/descargar-excel-hoy`, { headers: getAuthHeaders() });
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -1291,7 +1291,7 @@ function setupAdminTabs() {
             const fecha = document.getElementById('history-date-select').value;
             if(!fecha) return alert("Selecciona una fecha primero");
             try {
-                const response = await fetch(`${SERVER_URL}/api/descargar/hoy?fecha=${encodeURIComponent(fecha)}`, { headers: getAuthHeaders() });
+                const response = await fetch(`${SERVER_URL}/api/admin/descargar-excel-hoy?fecha=${encodeURIComponent(fecha)}`, { headers: getAuthHeaders() });
                 if (response.ok) {
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);

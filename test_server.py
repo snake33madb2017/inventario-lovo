@@ -115,7 +115,7 @@ def test_descargar_hoy(client, admin_token):
     # Download uses current date if none provided, or today_str from above
     from datetime import datetime
     today_str = datetime.now().strftime("%Y-%m-%d")
-    response = client.get(f"/api/descargar/hoy?fecha={today_str}", headers=headers)
+    response = client.get(f"/api/admin/descargar-excel-hoy?fecha={today_str}", headers=headers)
     print("STATUS:", response.status_code)
     print("BODY:", response.text)
     assert response.status_code == 200
