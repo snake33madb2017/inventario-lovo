@@ -2172,15 +2172,52 @@ document.addEventListener('DOMContentLoaded', () => {
     const posSearchInput = document.getElementById('pos-search-input');
     if (posSearchInput) {
         posSearchInput.addEventListener('input', function(e) {
-            const val = e.target.value.toLowerCase();
-            const items = document.querySelectorAll('.pos-item');
-            items.forEach(item => {
-                const name = item.querySelector('h3').innerText.toLowerCase();
-                if (name.includes(val)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
+            const val = e.target.value.toLowerCase().trim();
+            const grid = document.getElementById('pos-grid');
+            if (!grid) return;
+            
+            if (val === '') {
+                const catDropdown = document.getElementById('category-dropdown');
+                if(catDropdown) renderPosGrid(catDropdown.value);
+                return;
+            }
+            
+            let matchedProducts = [];
+            for (let cat in posData) {
+                posData[cat].forEach(prod => {
+                    if (prod.toLowerCase().includes(val) && !matchedProducts.includes(prod)) {
+                        matchedProducts.push(prod);
+                    }
+                });
+            }
+            
+            grid.innerHTML = '';
+            if (matchedProducts.length === 0) {
+                grid.innerHTML = '<p style="color:#f59e0b; text-align:center; grid-column: 1 / -1; font-weight: bold; margin-top:20px;">No existe en el catálogo. ¡Haz clic en "+ Crear Ítem" arriba a la derecha!</p>';
+                return;
+            }
+            
+            matchedProducts.sort((a, b) => a.localeCompare(b));
+            matchedProducts.forEach(p => {
+                let imgName = 'jack_daniels.jpg';
+                const pLower = p.toLowerCase();
+                if(pLower.includes('licor') || pLower.includes('licores')) imgName = 'licor_gen.jpg';
+                if(pLower.includes('cristal') || pLower.includes('copa') || pLower.includes('vaso')) imgName = 'cristaleria_gen.jpg';
+                if(pLower.includes('garrafa') || pLower.includes('sirope')) imgName = 'garrafa_gen.jpg';
+                
+                let actualQty = window.posStockBase ? (window.posStockBase[p] || 0) : 0;
+                
+                const div = document.createElement('div');
+                div.className = 'pos-item';
+                div.innerHTML = `
+                    <div class="pos-item-img" style="background-image: url('${imgName}');"></div>
+                    <div class="pos-item-info">
+                        <h3>${p}</h3>
+                        <div class="pos-item-stock" id="stock-pos-${p.replace(/[^a-zA-Z0-9]/g, '')}">Cant: ${actualQty}</div>
+                    </div>
+                `;
+                div.onclick = () => openPosModal(p);
+                grid.appendChild(div);
             });
         });
     }
