@@ -2090,8 +2090,29 @@ if ('serviceWorker' in navigator) {
                     alert("Error al guardar en el servidor.");
                 }
             } catch (err) {
-                console.error(err);
-                alert("Error de red.");
+                console.warn('Network error, saving new item to offline queue', err);
+                const queue = getOfflineQueue();
+                queue.push(payload);
+                saveOfflineQueue(queue);
+                
+                if (typeof showToast === 'function') showToast(`Offline: Producto creado localmente`, 'orange');
+                
+                // Update posData locally so it appears immediately offline!
+                if (!posData[cat]) posData[cat] = [];
+                if (!posData[cat].includes(name)) posData[cat].push(name);
+                
+                if (!window.posStockBase) window.posStockBase = {};
+                window.posStockBase[name] = qty;
+                
+                const currentCat = document.getElementById('category-dropdown');
+                if (currentCat) {
+                    currentCat.value = cat;
+                    renderPosGrid(cat);
+                }
+                
+                createModal.style.display = 'none';
+                document.getElementById('new-prod-name').value = '';
+                document.getElementById('new-prod-qty').value = '1';
             } finally {
                 saveCreateBtn.textContent = 'Guardar';
                 saveCreateBtn.disabled = false;
