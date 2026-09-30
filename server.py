@@ -1618,12 +1618,6 @@ def calcular_stock_bascula(producto: str, peso_actual_gr: float):
     }
 
 # Servir archivos estáticos del frontend en la raíz
-app.mount("/", StaticFiles(directory=".", html=True), name="static")
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
-
 @app.get("/api/admin/force_db_sync")
 def force_db_sync():
     try:
@@ -1647,3 +1641,10 @@ def force_db_sync():
         return {"status": "success", "categories_updated": updated, "message": "DB fully synced and cleaned"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+app.mount("/", StaticFiles(directory=".", html=True), name="static")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+
