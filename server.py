@@ -780,7 +780,7 @@ def obtener_inventario_hoy(user: dict = Depends(get_current_user)):
         fecha_hoy = now.strftime("%d/%m/%Y")
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY hora DESC LIMIT 150', (fecha_hoy,))
+        cursor.execute('SELECT * FROM registros WHERE fecha = ? ORDER BY hora DESC', (fecha_hoy,))
         rows = cursor.fetchall()
         conn.close()
         
