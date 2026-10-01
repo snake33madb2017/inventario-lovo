@@ -102,9 +102,7 @@
                         <button id="admin-toggle-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #3b82f6; border-color: #3b82f6;">
                             ⚙️ Admin
                         </button>
-                        <button id="history-agosto-btn" class="undo-btn hidden" style="font-size: 0.75rem; padding: 4px 8px; color: #f59e0b; border-color: #f59e0b;">
-                            📅 Ver Agosto
-                        </button>
+
                         <button id="logout-btn" class="undo-btn" style="font-size: 0.75rem; padding: 4px 8px;">
                             Salir
                         </button>
@@ -139,9 +137,9 @@
             </div>
 
             
-            <div class="pos-controls" style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
-                <input type="text" id="pos-search-input" placeholder="🔍 Buscar producto rápido..." autocomplete="off" style="flex: 1; font-size: 1.1rem; padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary-color); border-radius: 8px;">
-                <button id="pos-create-new-btn" style="background: linear-gradient(135deg, var(--primary-color) 0%, #d97706 100%); border: none; padding: 10px 20px; border-radius: 12px; color: var(--bg-dark); font-weight: bold; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); transition: transform 0.2s ease, box-shadow 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(245, 158, 11, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(245, 158, 11, 0.4)';">✨ Crear Ítem</button>
+            <div class="pos-controls" style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 10px;">
+                <input type="text" id="pos-search-input" placeholder="🔍 Buscar producto rápido..." autocomplete="off" style="width: 100%; font-size: 1.1rem; padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary-color); border-radius: 8px;">
+                <button id="pos-create-new-btn" style="width: 100%; background: linear-gradient(135deg, var(--primary-color) 0%, #d97706 100%); border: none; padding: 12px 20px; border-radius: 8px; color: var(--bg-dark); font-weight: bold; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); transition: transform 0.2s ease, box-shadow 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(245, 158, 11, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(245, 158, 11, 0.4)';">✨ Crear Ítem</button>
             </div>
 
             <div class="category-selector">
@@ -521,6 +519,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=20"></script>
+    <script src="app.js?v=21"></script>
 </body>
 </html>
