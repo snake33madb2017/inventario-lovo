@@ -143,6 +143,38 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def auto_categorize_product(name: str, current_cat: str) -> str:
+    name_lower = name.lower()
+    destilados_kw = ["whisky", "whiskey", "bourbon", "ron", "ginebra", "gin ", "vodka", "tequila", "mezcal", "brandy", "cognac", "pisco", "macallan", "chivas", "johnnie", "jack daniels", "brugal", "barcelo", "santa teresa", "bacardi", "cacique", "pampero", "havana", "arehucas", "gordon", "beefeater", "seagram", "tanqueray", "hendrick", "ruavieja"]
+    if any(k in name_lower for k in destilados_kw): return "Destilados"
+    cervezas_kw = ["cerveza", "heineken", "aguila", "mahou", "guinness", "coronita", "paulaner", "alhambra", "estrella", "cruzcampo"]
+    if any(k in name_lower for k in cervezas_kw): return "Cervezas"
+    vinos_kw = ["vino", "tinto", "blanco", "rosado", "ribera", "rioja", "verdejo", "albariño", "champagne", "cava", "prosecco", "oporto", "jerez", "manzanilla", "fino", "amontillado", "moet", "veuve"]
+    if any(k in name_lower for k in vinos_kw): return "Vinos"
+    licores_kw = ["licor", "crema", "baileys", "frangelico", "pacharan", "amaretto", "cointreau", "grand marnier", "kahlua", "limoncello", "jagermeister", "jagger", "malibu", "pisang", "peppermint", "borghetti"]
+    if any(k in name_lower for k in licores_kw): return "Licores"
+    zumos_kw = ["zumo", "jugo", "nectar", "z."]
+    if any(k in name_lower for k in zumos_kw): return "Zumos"
+    refrescos_kw = ["refresco", "cola", "fanta", "sprite", "tonica", "red bull", "soda", "ginger ale", "ginger beer", "schweppes", "7up", "nestea", "aquarius"]
+    if any(k in name_lower for k in refrescos_kw): return "Refrescos"
+    siropes_kw = ["sirope", "jarabe", "pure", "monin", "giffard"]
+    if any(k in name_lower for k in siropes_kw): return "Siropes"
+    cristal_kw = ["copa", "vaso", "botanico", "hielo", "chupito", "bandeja", "pinzas", "tumbler", "highball", "coupette"]
+    if any(k in name_lower for k in cristal_kw): return "Cristalería"
+    amaros_kw = ["amaro", "bitter", "angostura", "fernandito", "fernet", "vermouth", "vermut", "martini", "campari", "aperol", "st germain", "cynar"]
+    if any(k in name_lower for k in amaros_kw): return "Bitters"
+    return current_cat
+
+def auto_categorize_db(conn):
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, producto, categoria FROM stock_referencia')
+    rows = cursor.fetchall()
+    for row in rows:
+        correct_cat = auto_categorize_product(row['producto'], row['categoria'])
+        if correct_cat != row['categoria']:
+            cursor.execute('UPDATE stock_referencia SET categoria = ? WHERE id = ?', (correct_cat, row['id']))
+    conn.commit()
+
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -521,6 +553,9 @@ def load_stock_referencia(conn):
 @app.on_event("startup")
 def startup_event():
     init_db()
+    conn = get_db_connection()
+    auto_categorize_db(conn)
+    conn.close()
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
@@ -603,21 +638,25 @@ def añadir_registro(registro: Registro, user: dict = Depends(get_current_user))
         
         # Safety net and dynamic insert for new products
         cat_final = registro.categoria
+        if not cat_final or cat_final.strip() == "":
+            cat_final = "General"
+            
+        # FORCE SMART CATEGORIZATION
+        cat_final = auto_categorize_product(registro.producto, cat_final)
+        
         cursor.execute('SELECT categoria FROM stock_referencia WHERE producto = ?', (registro.producto,))
         row = cursor.fetchone()
         
         if row:
-            if not cat_final or cat_final.strip() == "":
-                cat_final = row['categoria']
+            if row['categoria'] != cat_final:
+                # Actualizar si la regla inteligente detecta que estaba mal categorizado
+                cursor.execute('UPDATE stock_referencia SET categoria = ? WHERE producto = ?', (cat_final, registro.producto))
         else:
-            if not cat_final or cat_final.strip() == "":
-                cat_final = "General"
             # Insert into stock_referencia dynamically
             cursor.execute('''
                 INSERT INTO stock_referencia (producto, categoria, stock_anterior, precio_unitario, stock_ideal)
                 VALUES (?, ?, 0.0, 0.0, 0.0)
             ''', (registro.producto, cat_final))
-
         cursor.execute('''
             INSERT INTO registros (fecha, hora, categoria, producto, cantidad_dictada, botellas_llenas, restante_porcentaje, usuario, ubicacion)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
