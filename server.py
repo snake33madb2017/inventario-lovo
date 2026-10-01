@@ -1121,6 +1121,8 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
         datos = []
         for p, cat, stock_ant, precio_u in productos:
             p_clean = p.strip()
+            if not p_clean:
+                continue
             cantidad = conteo.get(p_clean.lower(), 0)
             stock_ant_val = float(stock_ant) if stock_ant else 0.0
             precio_val = float(precio_u) if precio_u else 0.0
@@ -1130,10 +1132,9 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
                 'Producto': p_clean,
                 'Stock Anterior': stock_ant_val,
                 'Cantidad Contada': cantidad,
-                'Diferencia': '', # Formula will be injected later
-                'Proveedor': '',
+                'Diferencia': cantidad - stock_ant_val,
                 'Precio Unitario': precio_val,
-                'Costo Total': '' # Formula will be injected later
+                'Costo Total': cantidad * precio_val
             })
             
         df = pd.DataFrame(datos)
@@ -1161,15 +1162,11 @@ def descargar_excel_hoy(fecha: Optional[str] = None, user: dict = Depends(check_
             row_idx = 2
             for index, row in df_cat.iterrows():
                 row_data = list(row)
-                # Formula Diferencia = Cantidad Contada (C) - Stock Anterior (B)
-                row_data[3] = f"=C{row_idx}-B{row_idx}"
-                # Formula Costo Total = Cantidad Contada (C) * Precio Unitario (F)
-                row_data[6] = f"=C{row_idx}*F{row_idx}"
                 ws.append(row_data)
                 row_idx += 1
                 
             # Fila de Totales
-            ws.append(["TOTALES", f"=SUM(B2:B{row_idx-1})", f"=SUM(C2:C{row_idx-1})", f"=SUM(D2:D{row_idx-1})", "", "", f"=SUM(G2:G{row_idx-1})"])
+            ws.append(["TOTALES", f"=SUM(B2:B{row_idx-1})", f"=SUM(C2:C{row_idx-1})", f"=SUM(D2:D{row_idx-1})", "", f"=SUM(F2:F{row_idx-1})"])
             
             # Estilos encabezados
             for cell in ws[1]:
