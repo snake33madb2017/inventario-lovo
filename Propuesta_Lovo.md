@@ -20,23 +20,26 @@ El sistema ha sido desarrollado a medida para Coctelería Lovo, superando las li
 1. **Reconocimiento de Voz y Registro Híbrido:** El equipo puede dictar los productos a través del micrófono de su dispositivo móvil, agilizando el conteo exponencialmente. Además, el sistema incorpora una interfaz de registro manual rápido por teclado, garantizando que el conteo no se detenga ni siquiera en momentos de ruido extremo.
 2. **Autocorrector Inteligente (Diccionario):** Un algoritmo entrenable que interpreta la fonética en barra y corrige automáticamente (por ejemplo, transcribiendo "jagger" a "Jägermeister").
 3. **Clasificación Dinámica y Estructurada:** Agrupación automática de los productos por áreas (Cristalería, Destilados, Vinos, etc.) para una lectura clara.
-4. **Exportación a Excel y Cierre de Ciclo:** Finalizado el conteo, un solo clic compila los datos y descarga un informe detallado. Una vez asegurada la información, el encargado dispone de una función de "Cierre" para resetear la base de datos y preparar el sistema para el siguiente ciclo.
-5. **Multiusuario Simultáneo:** Permite que varios empleados trabajen al mismo tiempo en diferentes categorías, sincronizando los datos en tiempo real sin sobrescribir información.
-6. **Seguridad, Roles y Autenticación:** Acceso restringido y seguro mediante DNI y contraseña para cada empleado. Separación estricta de permisos: los camareros solo registran o borran sus conteos, mientras que los encargados tienen control total sobre la base de datos.
-7. **Diseño Premium e Instalación Nativa:** Una interfaz moderna en "Modo Oscuro" (Dark Mode) que se instala en cualquier smartphone iOS o Android como una aplicación nativa.
-8. **Panel de Administración Autogestionado:** La gerencia dispone de un panel de configuración avanzado que les otorga total independencia técnica para gestionar la plantilla (altas/bajas de usuarios), crear o eliminar categorías dinámicamente, y entrenar al algoritmo añadiendo nuevas reglas de corrección fonética directamente desde la app.
+4. **Gestión Multi-Ubicación para Stock:** Permite asignar ubicaciones específicas para categorías sensibles (como Cristalería), registrando conteos parciales por zonas y sumando los totales automáticamente sin esfuerzo.
+5. **Historial Visual y Comparativa de Consumos:** Integración de vistas históricas (ej. Inventario de Agosto) directamente en la interfaz, permitiendo analizar mermas, consumos y stock base de forma visual e intuitiva durante el proceso de reposición.
+6. **Interfaz POS Unificada y Navegación Ágil:** Diseño tipo TPV en tarjeta con categorías globales ("Todas") que agiliza la visualización y el registro rápido sin necesidad de cambiar constantemente de pantallas.
+7. **Exportación a Excel y Cierre de Ciclo:** Finalizado el conteo, un solo clic compila los datos y descarga un informe detallado. Una vez asegurada la información, el encargado dispone de una función de "Cierre" para resetear la base de datos y preparar el sistema para el siguiente ciclo.
+8. **Multiusuario Simultáneo:** Permite que varios empleados trabajen al mismo tiempo en diferentes categorías, sincronizando los datos en tiempo real sin sobrescribir información.
+9. **Seguridad, Roles y Autenticación:** Acceso restringido y seguro mediante DNI y contraseña para cada empleado. Separación estricta de permisos: los camareros solo registran o borran sus conteos, mientras que los encargados tienen control total sobre la base de datos.
+10. **Diseño Premium e Instalación Nativa:** Una interfaz moderna en "Modo Oscuro" (Dark Mode) que se instala en cualquier smartphone iOS o Android como una aplicación nativa.
+11. **Panel de Administración Autogestionado:** La gerencia dispone de un panel de configuración avanzado que les otorga total independencia técnica para gestionar la plantilla (altas/bajas de usuarios), crear o eliminar categorías dinámicamente, y entrenar al algoritmo añadiendo nuevas reglas de corrección fonética directamente desde la app.
 
 ---
 
 ## 3. MODELOS DE ADQUISICIÓN Y PRESUPUESTO
 
-Entendiendo que las necesidades financieras y operativas pueden variar, presento tres modelos de adquisición basados en el valor de mercado actual en Madrid para desarrollos de software a medida. 
+Entendiendo que las necesidades financieras y operativas pueden variar, presento tres modelos de adquisición basados en las tarifas actuales del mercado en Madrid para desarrolladores Full-Stack Senior y arquitectos de software.
 
 *(Todos los importes mostrados no incluyen IVA).*
 
 ### MODELO A: Licencia de Uso Perpetua (Pago Único)
 La opción más directa. Lovo adquiere una licencia vitalicia para el uso de la aplicación en su local, eliminando cualquier cuota mensual de alquiler del software.
-- **Inversión Única:** **3.850 €**
+- **Inversión Única:** **5.500 €**
 - **Incluye:** 
   - Despliegue, configuración e instalación del software.
   - Licencia de uso perpetua e intransferible para el local actual.
@@ -46,8 +49,8 @@ La opción más directa. Lovo adquiere una licencia vitalicia para el uso de la 
 
 ### MODELO B: Software as a Service (SaaS / Suscripción)
 Un modelo ágil y de menor riesgo inicial. Lovo contrata el uso de la plataforma como un servicio todo incluido.
-- **Configuración Inicial (Setup):** **350 €** (Pago único).
-- **Cuota Integral:** **75 € / mes**.
+- **Configuración Inicial (Setup):** **850 €** (Pago único).
+- **Cuota Integral:** **150 € / mes**.
 - **Incluye:**
   - Uso ilimitado de la aplicación.
   - Pago y gestión integral de servidores de alto rendimiento.
@@ -57,7 +60,7 @@ Un modelo ágil y de menor riesgo inicial. Lovo contrata el uso de la plataforma
 
 ### MODELO C: Adquisición Integral con Exclusividad Absoluta
 La opción para garantizar ventaja competitiva. Lovo adquiere no solo el software, sino la totalidad del código fuente, la propiedad intelectual y un acuerdo estricto de exclusividad.
-- **Inversión Única:** **9.500 €**
+- **Inversión Única:** **12.500 €**
 - **Incluye:**
   - Entrega completa del código fuente y cesión de derechos de explotación.
   - Contrato de confidencialidad y exclusividad, garantizando que este sistema **no podrá ser comercializado ni cedido a ninguna otra coctelería o establecimiento competidor**.

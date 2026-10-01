@@ -1009,11 +1009,71 @@ function updateStatus(isOnline) {
 }
 
 // --- ADMIN PANEL LOGIC ---
+window.renderAdminStock = function(filterText = '') {
+    const list = document.getElementById('lista-admin-stock');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    let allProducts = [];
+    for (let cat in posData) {
+        posData[cat].forEach(p => {
+            if (!allProducts.includes(p)) allProducts.push(p);
+        });
+    }
+    allProducts.sort((a,b) => a.localeCompare(b));
+    
+    const term = filterText.toLowerCase();
+    
+    allProducts.forEach(prod => {
+        if(term && !prod.toLowerCase().includes(term)) return;
+        
+        const li = document.createElement('li');
+        li.style.display = 'flex';
+        li.style.justifyContent = 'space-between';
+        li.style.alignItems = 'center';
+        li.style.padding = '10px';
+        li.style.borderBottom = '1px solid rgba(255,255,255,0.1)';
+        
+        const span = document.createElement('span');
+        span.textContent = prod;
+        li.appendChild(span);
+        
+        const delBtn = document.createElement('button');
+        delBtn.textContent = 'Eliminar';
+        delBtn.className = 'undo-btn';
+        delBtn.style.color = '#ef4444';
+        delBtn.style.borderColor = '#ef4444';
+        delBtn.style.cursor = 'pointer';
+        
+        delBtn.onclick = async () => {
+            if(confirm(`¿Seguro que quieres eliminar el producto ${prod}?`)) {
+                try {
+                    const res = await fetch(`${SERVER_URL}/api/productos/${encodeURIComponent(prod)}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeaders()
+                    });
+                    if(res.ok) {
+                        if(typeof showToast === 'function') showToast("Producto eliminado");
+                        if(typeof fetchPosData === 'function') await fetchPosData();
+                        renderAdminStock(document.getElementById('admin-stock-search') ? document.getElementById('admin-stock-search').value : '');
+                    } else {
+                        alert("Error al eliminar producto");
+                    }
+                } catch(e) { alert("Error de red"); }
+            }
+        };
+        li.appendChild(delBtn);
+        list.appendChild(li);
+    });
+};
+
 function toggleAdminView() {
     if(adminView.classList.contains('hidden')) {
         adminView.classList.remove('hidden');
         appView.classList.add('hidden');
         if(laboratorioView) laboratorioView.classList.add('hidden');
+        
+        if (typeof renderAdminStock === 'function') renderAdminStock();
         
         const userRol = localStorage.getItem('usuario_lovo_rol');
         const adminTabs = document.querySelectorAll('.admin-tabs .tab-btn');
@@ -1215,8 +1275,18 @@ function setupAdminTabs() {
             contents.forEach(c => c.classList.add('hidden'));
             tab.classList.add('active');
             document.getElementById(tab.dataset.tab).classList.remove('hidden');
+            if (tab.dataset.tab === 'tab-stock' && typeof renderAdminStock === 'function') {
+                renderAdminStock();
+            }
         });
     });
+    
+    const adminStockSearch = document.getElementById('admin-stock-search');
+    if (adminStockSearch) {
+        adminStockSearch.addEventListener('input', (e) => {
+            if (typeof renderAdminStock === 'function') renderAdminStock(e.target.value);
+        });
+    }
     
     document.getElementById('form-usuario').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -2345,6 +2415,41 @@ const posSearchInput = document.getElementById('pos-search-input');
                     </div>
                 `;
                 div.onclick = () => openPosModal(p);
+
+                if (localStorage.getItem('usuario_lovo_rol') === 'encargado') {
+                    const delBtn = document.createElement('div');
+                    delBtn.innerHTML = '🗑️';
+                    delBtn.style.position = 'absolute';
+                    delBtn.style.top = '5px';
+                    delBtn.style.right = '5px';
+                    delBtn.style.cursor = 'pointer';
+                    delBtn.style.background = 'rgba(0,0,0,0.7)';
+                    delBtn.style.borderRadius = '50%';
+                    delBtn.style.padding = '5px';
+                    delBtn.style.fontSize = '1.2rem';
+                    delBtn.onclick = async (ev) => {
+                        ev.stopPropagation();
+                        if(confirm(`¿Seguro que quieres eliminar el producto ${p}?`)) {
+                            try {
+                                const res = await fetch(`${SERVER_URL}/api/productos/${encodeURIComponent(p)}`, {
+                                    method: 'DELETE',
+                                    headers: getAuthHeaders()
+                                });
+                                if (res.ok) {
+                                    if(typeof showToast === 'function') showToast("Producto eliminado");
+                                    if(typeof fetchPosData === 'function') fetchPosData();
+                                } else {
+                                    alert("Error al eliminar producto");
+                                }
+                            } catch(e) {
+                                alert("Error de red");
+                            }
+                        }
+                    };
+                    div.style.position = 'relative';
+                    div.appendChild(delBtn);
+                }
+
                 grid.appendChild(div);
             });
         });
@@ -2409,6 +2514,41 @@ const posSearchInput = document.getElementById('pos-search-input');
                 </div>
             `;
             card.addEventListener('click', () => openPosModal(prod));
+            
+            if (localStorage.getItem('usuario_lovo_rol') === 'encargado') {
+                const delBtn = document.createElement('div');
+                delBtn.innerHTML = '🗑️';
+                delBtn.style.position = 'absolute';
+                delBtn.style.top = '5px';
+                delBtn.style.right = '5px';
+                delBtn.style.cursor = 'pointer';
+                delBtn.style.background = 'rgba(0,0,0,0.7)';
+                delBtn.style.borderRadius = '50%';
+                delBtn.style.padding = '5px';
+                delBtn.style.fontSize = '1.2rem';
+                delBtn.onclick = async (ev) => {
+                    ev.stopPropagation();
+                    if(confirm(`¿Seguro que quieres eliminar el producto ${prod}?`)) {
+                        try {
+                            const res = await fetch(`${SERVER_URL}/api/productos/${encodeURIComponent(prod)}`, {
+                                method: 'DELETE',
+                                headers: getAuthHeaders()
+                            });
+                            if (res.ok) {
+                                if(typeof showToast === 'function') showToast("Producto eliminado");
+                                if(typeof fetchPosData === 'function') fetchPosData();
+                            } else {
+                                alert("Error al eliminar producto");
+                            }
+                        } catch(e) {
+                            alert("Error de red");
+                        }
+                    }
+                };
+                card.style.position = 'relative';
+                card.appendChild(delBtn);
+            }
+
             grid.appendChild(card);
         });
     };

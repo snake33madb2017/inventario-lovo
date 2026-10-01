@@ -923,6 +923,18 @@ def obtener_productos_pos(user: dict = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/productos/{producto}")
+def borrar_producto(producto: str, user: dict = Depends(check_is_admin)):
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM stock_referencia WHERE producto = ?', (producto,))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "message": "Producto eliminado correctamente"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/inventario/fechas")
 def obtener_fechas_historial(user: dict = Depends(check_is_admin)):
     try:

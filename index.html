@@ -297,6 +297,7 @@
             <div class="admin-tabs">
                 <button class="tab-btn active" data-tab="tab-usuarios">Usuarios</button>
                 <button class="tab-btn" data-tab="tab-categorias">Categorías</button>
+                <button class="tab-btn" data-tab="tab-stock">Stock</button>
                 <button class="tab-btn" data-tab="tab-diccionario">Diccionario</button>
                 <button class="tab-btn" data-tab="tab-compras">Compras</button>
                 <button class="tab-btn" data-tab="tab-analitica">Analítica</button>
@@ -341,6 +342,17 @@
                     <button type="submit">Añadir Categoría</button>
                 </form>
                 <ul id="lista-categorias" class="admin-list"></ul>
+            </div>
+
+            <div id="tab-stock" class="tab-content hidden">
+                <h3>Gestión de Productos (Stock)</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Aquí puedes ver todos los productos registrados y eliminarlos del sistema.</p>
+                <div class="search-container" style="margin-bottom: 15px;">
+                    <input type="text" id="admin-stock-search" placeholder="🔍 Buscar producto a eliminar..." autocomplete="off" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white; box-sizing: border-box;">
+                </div>
+                <ul id="lista-admin-stock" class="admin-list" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Productos inyectados por JS -->
+                </ul>
             </div>
 
             <div id="tab-diccionario" class="tab-content hidden">
@@ -519,6 +531,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=21"></script>
+    <script src="app.js?v=24"></script>
 </body>
 </html>
