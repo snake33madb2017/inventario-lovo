@@ -105,7 +105,13 @@ async function init() {
     if(categoryDropdown) {
         categoryDropdown.addEventListener('change', (e) => {
             localStorage.setItem('last_category', e.target.value);
-            renderList();
+            renderList(searchInput ? searchInput.value.toLowerCase().trim() : '');
+        });
+    }
+    const locDropdownNode = document.getElementById('location-dropdown');
+    if(locDropdownNode) {
+        locDropdownNode.addEventListener('change', (e) => {
+            renderList(searchInput ? searchInput.value.toLowerCase().trim() : '');
         });
     }
     if(downloadBtn) {
@@ -893,11 +899,22 @@ function renderList(filterText = '', showMissingOnly = false) {
         return;
     }
     
-    // Group by category, but keep order within category
+    // Filtering by category and location dropdowns
+    const selectedCat = document.getElementById('category-dropdown') ? document.getElementById('category-dropdown').value : 'Todas';
+    const selectedLoc = document.getElementById('location-dropdown') ? document.getElementById('location-dropdown').value : 'General (Por defecto)';
+
     const grupos = {};
     itemsToRenderSource.forEach(item => {
+        // Apply dropdown filters
+        if (selectedCat !== 'Todas' && item.categoria !== selectedCat) return;
+        if (selectedLoc !== 'Todas' && selectedLoc !== 'General (Por defecto)') {
+            // Only apply location filter to recorded items (they have an ID)
+            // Or if they want to see missing items, missing items technically have no location yet
+            if (item.id && item.ubicacion && item.ubicacion !== selectedLoc) return;
+        }
+
         if (!grupos[item.categoria]) grupos[item.categoria] = [];
-        // Filtering
+        // Filtering by text search
         if (filterText) {
             if (item.producto.toLowerCase().includes(filterText)) {
                 grupos[item.categoria].push(item);
