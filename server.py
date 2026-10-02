@@ -70,8 +70,9 @@ DB_DIR = "/data" if os.path.exists("/data") else "."
 DB_FILE = os.environ.get("DB_FILE", os.path.join(DB_DIR, "inventario.db"))
 
 import shutil
-if DB_DIR == "/data" and not os.path.exists(DB_FILE) and os.path.exists("inventario.db"):
-    shutil.copy2("inventario.db", DB_FILE)
+if DB_DIR == "/data" and os.path.exists("inventario.db"):
+    if not os.path.exists(DB_FILE) or os.environ.get("UPDATE_DB") == "true":
+        shutil.copy2("inventario.db", DB_FILE)
 
 class Registro(BaseModel):
     categoria: str
