@@ -300,6 +300,7 @@
                 <button class="tab-btn" data-tab="tab-stock">Stock</button>
                 <button class="tab-btn" data-tab="tab-diccionario">Diccionario</button>
                 <button class="tab-btn" data-tab="tab-compras">Compras</button>
+                <button class="tab-btn" data-tab="tab-mermas">Mermas</button>
                 <button class="tab-btn" data-tab="tab-analitica">Analítica</button>
                 <button class="tab-btn" data-tab="tab-historial">Historial</button>
                 <button class="tab-btn" data-tab="tab-balance">Balance</button>
@@ -314,10 +315,56 @@
             </div>
 
             <div id="tab-compras" class="tab-content hidden">
-                <h3>Notas y Pedidos de Compra</h3>
-                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Escribe aquí todo lo que necesites comprar. Estas notas se guardarán automáticamente y aparecerán en una nueva pestaña cuando descargues el Excel.</p>
-                <textarea id="notas-compra-input" placeholder="Ejemplo: Comprar 5 cajas de agua, faltan limones..." style="width: 100%; height: 300px; padding: 15px; border-radius: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white; font-family: 'Inter', sans-serif; font-size: 0.95rem; resize: none; margin-bottom: 15px; box-sizing: border-box;"></textarea>
-                <button id="btn-guardar-notas" class="submit-btn" style="width: 100%;">Guardar Notas</button>
+                <h3>Gestión de Proveedores y Pedidos</h3>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--primary-color);">
+                    <h4 style="margin-top: 0; color: var(--primary-color);">Proveedores</h4>
+                    <form id="form-proveedor" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="new-prov-nombre" placeholder="Nombre" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <input type="text" id="new-prov-contacto" placeholder="Contacto" style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <button type="submit" class="submit-btn" style="padding: 8px 12px;">Añadir</button>
+                    </form>
+                    <ul id="lista-proveedores" class="admin-list" style="max-height: 150px; overflow-y: auto;"></ul>
+                </div>
+
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #10b981;">
+                    <h4 style="margin-top: 0; color: #10b981;">Nuevo Pedido</h4>
+                    <form id="form-pedido" style="display: flex; flex-direction: column; gap: 10px;">
+                        <select id="pedido-proveedor" required style="padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                            <option value="">Selecciona Proveedor...</option>
+                        </select>
+                        <div id="pedido-items-container" style="display: flex; flex-direction: column; gap: 5px;">
+                            <div class="pedido-item-row" style="display: flex; gap: 5px;">
+                                <input type="text" placeholder="Producto" class="p-prod" required style="flex: 2; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                                <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                                <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                            </div>
+                        </div>
+                        <button type="button" id="btn-add-pedido-item" class="undo-btn" style="width: fit-content; align-self: flex-start;">+ Añadir Línea</button>
+                        <button type="submit" class="submit-btn" style="background: #10b981;">Generar Pedido</button>
+                    </form>
+                </div>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; border: 1px solid #3b82f6;">
+                    <h4 style="margin-top: 0; color: #3b82f6;">Historial de Pedidos</h4>
+                    <div id="lista-pedidos" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto;">
+                        <!-- Pedidos inyectados por JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-mermas" class="tab-content hidden">
+                <h3>Registro de Mermas y Roturas</h3>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 15px;">Registra pérdidas de inventario por rotura, derrame o caducidad.</p>
+                <form id="form-merma" class="admin-form" style="margin-bottom: 20px;">
+                    <input type="text" id="merma-producto" placeholder="Producto afectado" required>
+                    <input type="number" id="merma-cantidad" step="0.01" placeholder="Cantidad perdida (Ej: 0.5 botellas)" required>
+                    <input type="text" id="merma-motivo" placeholder="Motivo (Ej: Rotura en barra)" required>
+                    <button type="submit" style="background: #ef4444; color: white;">Registrar Merma</button>
+                </form>
+                
+                <h4 style="color: var(--primary-color);">Últimas Mermas</h4>
+                <ul id="lista-mermas" class="admin-list" style="max-height: 300px; overflow-y: auto;"></ul>
             </div>
             <div id="tab-usuarios" class="tab-content active">
                 <h3>Gestionar Empleados</h3>

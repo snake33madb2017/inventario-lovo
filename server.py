@@ -111,6 +111,25 @@ class AjusteBalance(BaseModel):
     stock_actual: float
     precio: float
 
+class NuevoProveedor(BaseModel):
+    nombre: str
+    contacto: str = ""
+    telefono: str = ""
+
+class ItemPedido(BaseModel):
+    producto: str
+    cantidad: float
+    precio_unitario: float
+
+class NuevoPedido(BaseModel):
+    proveedor_id: int
+    items: list[ItemPedido]
+
+class NuevaMerma(BaseModel):
+    producto: str
+    cantidad: float
+    motivo: str
+
 from typing import List
 
 class IngredienteProduccion(BaseModel):
@@ -270,6 +289,50 @@ def init_db():
             stock_anterior REAL,
             precio_unitario REAL,
             stock_ideal REAL DEFAULT 0.0
+        )
+    ''')
+    
+    # Proveedores y Compras
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS proveedores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nombre TEXT UNIQUE,
+            contacto TEXT,
+            telefono TEXT
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pedidos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            proveedor_id INTEGER,
+            fecha TEXT,
+            estado TEXT DEFAULT 'Pendiente',
+            total REAL DEFAULT 0.0,
+            FOREIGN KEY(proveedor_id) REFERENCES proveedores(id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS pedido_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            pedido_id INTEGER,
+            producto TEXT,
+            cantidad REAL,
+            precio_unitario REAL,
+            FOREIGN KEY(pedido_id) REFERENCES pedidos(id)
+        )
+    ''')
+    
+    # Mermas y Roturas
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS mermas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fecha TEXT,
+            producto TEXT,
+            cantidad REAL,
+            motivo TEXT,
+            usuario TEXT
         )
     ''')
     
@@ -1731,6 +1794,120 @@ def force_db_sync():
         return {"status": "success", "categories_updated": updated, "message": "DB fully synced and cleaned"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+# --- NUEVOS ENDPOINTS PARA COMPRAS Y MERMAS ---
+
+@app.get("/api/proveedores")
+def get_proveedores(user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM proveedores")
+    proveedores = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return proveedores
+
+@app.post("/api/proveedores")
+def crear_proveedor(p: NuevoProveedor, user: dict = Depends(check_is_admin)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO proveedores (nombre, contacto, telefono) VALUES (?, ?, ?)", (p.nombre, p.contacto, p.telefono))
+        conn.commit()
+    except sqlite3.IntegrityError:
+        conn.close()
+        raise HTTPException(status_code=400, detail="El proveedor ya existe")
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/api/pedidos")
+def get_pedidos(user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT p.id, p.fecha, p.estado, p.total, pr.nombre as proveedor_nombre
+        FROM pedidos p
+        JOIN proveedores pr ON p.proveedor_id = pr.id
+        ORDER BY p.id DESC
+    ''')
+    pedidos = [dict(row) for row in cursor.fetchall()]
+    
+    for pedido in pedidos:
+        cursor.execute("SELECT * FROM pedido_items WHERE pedido_id = ?", (pedido['id'],))
+        pedido['items'] = [dict(row) for row in cursor.fetchall()]
+        
+    conn.close()
+    return pedidos
+
+@app.post("/api/pedidos")
+def crear_pedido(p: NuevoPedido, user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        fecha_actual = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        total_pedido = sum(item.cantidad * item.precio_unitario for item in p.items)
+        
+        cursor.execute("INSERT INTO pedidos (proveedor_id, fecha, total) VALUES (?, ?, ?)", 
+                       (p.proveedor_id, fecha_actual, total_pedido))
+        pedido_id = cursor.lastrowid
+        
+        for item in p.items:
+            cursor.execute("INSERT INTO pedido_items (pedido_id, producto, cantidad, precio_unitario) VALUES (?, ?, ?, ?)",
+                           (pedido_id, item.producto, item.cantidad, item.precio_unitario))
+                           
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    conn.close()
+    return {"status": "success", "pedido_id": pedido_id}
+
+@app.put("/api/pedidos/{pedido_id}/recibir")
+def recibir_pedido(pedido_id: int, user: dict = Depends(check_is_admin)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute("UPDATE pedidos SET estado = 'Recibido' WHERE id = ?", (pedido_id,))
+        # Aquí idealmente se añadiría el stock físico si fuera un sistema más robusto.
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+    conn.close()
+    return {"status": "success"}
+
+@app.get("/api/mermas")
+def get_mermas(user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM mermas ORDER BY id DESC")
+    mermas = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return mermas
+
+@app.post("/api/mermas")
+def registrar_merma(m: NuevaMerma, user: dict = Depends(get_current_user)):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        fecha_actual = datetime.now().strftime("%d/%m/%Y")
+        usuario_nombre = user.get("nombre", "Desconocido")
+        
+        cursor.execute("INSERT INTO mermas (fecha, producto, cantidad, motivo, usuario) VALUES (?, ?, ?, ?, ?)",
+                       (fecha_actual, m.producto, m.cantidad, m.motivo, usuario_nombre))
+        
+        # Opcional: descontar del stock si se lleva un stock real en BD,
+        # pero como el stock es por inventario periódico, registrar la merma sirve para el balance.
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(status_code=500, detail=str(e))
+    conn.close()
+    return {"status": "success"}
 
 app.mount("/", StaticFiles(directory=".", html=True), name="static")
 

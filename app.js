@@ -2000,24 +2000,186 @@ function renderCharts(cats, top5) {
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const target = btn.dataset.tab;
-        if(target === 'tab-compras') fetchNotasCompra();
+        if(target === 'tab-compras') {
+            loadProveedores();
+            loadPedidos();
+        }
+        if(target === 'tab-mermas') loadMermas();
         if(target === 'tab-analitica') loadAnalitica();
     });
 });
 
-// --- Notas de Compra ---
-const btnGuardarNotas = document.getElementById('btn-guardar-notas');
-const notasInput = document.getElementById('notas-compra-input');
-
-async function fetchNotasCompra() {
+// --- Compras y Pedidos ---
+async function loadProveedores() {
     try {
-        const response = await fetch(SERVER_URL + '/api/notas_compra', { headers: getAuthHeaders() });
-        if(response.ok) {
-            const data = await response.json();
-            if(notasInput) notasInput.value = data.texto || "";
+        const res = await fetch(SERVER_URL + '/api/proveedores', { headers: getAuthHeaders() });
+        if(res.ok) {
+            const data = await res.json();
+            const list = document.getElementById('lista-proveedores');
+            const select = document.getElementById('pedido-proveedor');
+            list.innerHTML = '';
+            select.innerHTML = '<option value="">Selecciona Proveedor...</option>';
+            data.forEach(p => {
+                const li = document.createElement('li');
+                li.textContent = `${p.nombre} - ${p.contacto || 'Sin contacto'} - ${p.telefono || 'Sin tel'}`;
+                list.appendChild(li);
+                
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.nombre;
+                select.appendChild(opt);
+            });
         }
-    } catch(e) { console.error("Error fetching notas", e); }
+    } catch(e) { console.error(e); }
 }
+
+async function loadPedidos() {
+    try {
+        const res = await fetch(SERVER_URL + '/api/pedidos', { headers: getAuthHeaders() });
+        if(res.ok) {
+            const data = await res.json();
+            const list = document.getElementById('lista-pedidos');
+            list.innerHTML = '';
+            data.forEach(p => {
+                const div = document.createElement('div');
+                div.style.cssText = "background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);";
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <strong style="color:var(--primary-color);">Pedido #${p.id} - ${p.proveedor_nombre}</strong>
+                        <span>${p.fecha}</span>
+                    </div>
+                    <div style="font-size:0.9rem; color:#bbb; margin-bottom:10px;">Total: ${p.total.toFixed(2)}€ | Estado: <span style="color:${p.estado==='Pendiente'?'#f59e0b':'#10b981'}">${p.estado}</span></div>
+                    ${p.estado === 'Pendiente' ? `<button onclick="recibirPedido(${p.id})" class="download-btn" style="padding:4px 8px; font-size:0.8rem;">Marcar Recibido</button>` : ''}
+                `;
+                list.appendChild(div);
+            });
+        }
+    } catch(e) { console.error(e); }
+}
+
+document.getElementById('form-proveedor')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const nombre = document.getElementById('new-prov-nombre').value;
+    const contacto = document.getElementById('new-prov-contacto').value;
+    
+    try {
+        const res = await fetch(SERVER_URL + '/api/proveedores', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ nombre, contacto })
+        });
+        if(res.ok) {
+            showToast("Proveedor añadido");
+            e.target.reset();
+            loadProveedores();
+        } else {
+            showToast("Error al añadir proveedor");
+        }
+    } catch(e) { console.error(e); }
+});
+
+document.getElementById('btn-add-pedido-item')?.addEventListener('click', () => {
+    const container = document.getElementById('pedido-items-container');
+    const row = document.createElement('div');
+    row.className = 'pedido-item-row';
+    row.style.cssText = "display: flex; gap: 5px;";
+    row.innerHTML = `
+        <input type="text" placeholder="Producto" class="p-prod" required style="flex: 2; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+        <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+        <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+    `;
+    container.appendChild(row);
+});
+
+document.getElementById('form-pedido')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const proveedor_id = parseInt(document.getElementById('pedido-proveedor').value);
+    const rows = document.querySelectorAll('.pedido-item-row');
+    const items = [];
+    rows.forEach(r => {
+        const prod = r.querySelector('.p-prod').value;
+        const cant = parseFloat(r.querySelector('.p-cant').value);
+        const precio = parseFloat(r.querySelector('.p-precio').value);
+        if(prod && cant > 0) {
+            items.push({ producto: prod, cantidad: cant, precio_unitario: precio });
+        }
+    });
+    
+    if(items.length === 0) return showToast("Añade al menos un producto");
+    
+    try {
+        const res = await fetch(SERVER_URL + '/api/pedidos', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ proveedor_id, items })
+        });
+        if(res.ok) {
+            showToast("Pedido generado");
+            e.target.reset();
+            const container = document.getElementById('pedido-items-container');
+            container.innerHTML = `
+                <div class="pedido-item-row" style="display: flex; gap: 5px;">
+                    <input type="text" placeholder="Producto" class="p-prod" required style="flex: 2; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                    <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                    <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                </div>
+            `;
+            loadPedidos();
+        }
+    } catch(e) { console.error(e); }
+});
+
+window.recibirPedido = async function(id) {
+    if(!confirm("¿Marcar este pedido como recibido?")) return;
+    try {
+        const res = await fetch(SERVER_URL + '/api/pedidos/' + id + '/recibir', {
+            method: 'PUT',
+            headers: getAuthHeaders()
+        });
+        if(res.ok) {
+            showToast("Pedido recibido");
+            loadPedidos();
+        }
+    } catch(e) { console.error(e); }
+};
+
+// --- Mermas ---
+async function loadMermas() {
+    try {
+        const res = await fetch(SERVER_URL + '/api/mermas', { headers: getAuthHeaders() });
+        if(res.ok) {
+            const data = await res.json();
+            const list = document.getElementById('lista-mermas');
+            list.innerHTML = '';
+            data.forEach(m => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span><strong style="color:#ef4444">${m.producto}</strong> - ${m.cantidad} uds (${m.motivo})</span> <span style="font-size:0.8rem;color:#888">${m.fecha} por ${m.usuario}</span>`;
+                list.appendChild(li);
+            });
+        }
+    } catch(e) { console.error(e); }
+}
+
+document.getElementById('form-merma')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const producto = document.getElementById('merma-producto').value;
+    const cantidad = parseFloat(document.getElementById('merma-cantidad').value);
+    const motivo = document.getElementById('merma-motivo').value;
+    
+    try {
+        const res = await fetch(SERVER_URL + '/api/mermas', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ producto, cantidad, motivo })
+        });
+        if(res.ok) {
+            showToast("Merma registrada");
+            e.target.reset();
+            loadMermas();
+        }
+    } catch(e) { console.error(e); }
+});
+
 
 if (btnGuardarNotas && notasInput) {
     btnGuardarNotas.addEventListener('click', async () => {
