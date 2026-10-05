@@ -319,10 +319,10 @@
                 
                 <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--primary-color);">
                     <h4 style="margin-top: 0; color: var(--primary-color);">Proveedores</h4>
-                    <form id="form-proveedor" style="display: flex; gap: 10px; margin-bottom: 10px;">
-                        <input type="text" id="new-prov-nombre" placeholder="Nombre" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
-                        <input type="text" id="new-prov-contacto" placeholder="Contacto" style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
-                        <button type="submit" class="submit-btn" style="padding: 8px 12px;">Añadir</button>
+                    <form id="form-proveedor" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px;">
+                        <input type="text" id="new-prov-nombre" placeholder="Nombre" required style="flex: 1 1 120px; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <input type="text" id="new-prov-contacto" placeholder="Contacto" style="flex: 1 1 120px; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <button type="submit" class="submit-btn" style="padding: 8px 12px; flex: 1 1 100%;">Añadir</button>
                     </form>
                     <ul id="lista-proveedores" class="admin-list" style="max-height: 150px; overflow-y: auto;"></ul>
                 </div>
@@ -330,14 +330,16 @@
                 <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #10b981;">
                     <h4 style="margin-top: 0; color: #10b981;">Nuevo Pedido</h4>
                     <form id="form-pedido" style="display: flex; flex-direction: column; gap: 10px;">
-                        <select id="pedido-proveedor" required style="padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <select id="pedido-proveedor" required style="padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white; box-sizing: border-box; width: 100%;">
                             <option value="">Selecciona Proveedor...</option>
                         </select>
-                        <div id="pedido-items-container" style="display: flex; flex-direction: column; gap: 5px;">
-                            <div class="pedido-item-row" style="display: flex; gap: 5px;">
-                                <input type="text" placeholder="Producto" class="p-prod" required style="flex: 2; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
-                                <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
-                                <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <div id="pedido-items-container" style="display: flex; flex-direction: column; gap: 10px;">
+                            <div class="pedido-item-row" style="display: flex; flex-wrap: wrap; gap: 5px;">
+                                <input type="text" placeholder="Producto" class="p-prod" required style="flex: 1 1 120px; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                                <div style="display: flex; gap: 5px; flex: 1 1 120px;">
+                                    <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                                    <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                                </div>
                             </div>
                         </div>
                         <button type="button" id="btn-add-pedido-item" class="undo-btn" style="width: fit-content; align-self: flex-start;">+ Añadir Línea</button>

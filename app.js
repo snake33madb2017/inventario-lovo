@@ -2082,11 +2082,13 @@ document.getElementById('btn-add-pedido-item')?.addEventListener('click', () => 
     const container = document.getElementById('pedido-items-container');
     const row = document.createElement('div');
     row.className = 'pedido-item-row';
-    row.style.cssText = "display: flex; gap: 5px;";
+    row.style.cssText = "display: flex; flex-wrap: wrap; gap: 5px;";
     row.innerHTML = `
-        <input type="text" placeholder="Producto" class="p-prod" required style="flex: 2; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
-        <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
-        <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+        <input type="text" placeholder="Producto" class="p-prod" required style="flex: 1 1 120px; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+        <div style="display: flex; gap: 5px; flex: 1 1 120px;">
+            <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+            <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+        </div>
     `;
     container.appendChild(row);
 });
@@ -2118,10 +2120,12 @@ document.getElementById('form-pedido')?.addEventListener('submit', async (e) => 
             e.target.reset();
             const container = document.getElementById('pedido-items-container');
             container.innerHTML = `
-                <div class="pedido-item-row" style="display: flex; gap: 5px;">
-                    <input type="text" placeholder="Producto" class="p-prod" required style="flex: 2; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
-                    <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
-                    <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                <div class="pedido-item-row" style="display: flex; flex-wrap: wrap; gap: 5px;">
+                    <input type="text" placeholder="Producto" class="p-prod" required style="flex: 1 1 120px; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                    <div style="display: flex; gap: 5px; flex: 1 1 120px;">
+                        <input type="number" placeholder="Cant." step="0.1" class="p-cant" required style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                        <input type="number" placeholder="Precio U." step="0.01" class="p-precio" required style="flex: 1; min-width: 0; box-sizing: border-box; padding: 8px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: white;">
+                    </div>
                 </div>
             `;
             loadPedidos();
