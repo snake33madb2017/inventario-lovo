@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Baskervville:ital@0;1&family=Inter:wght@400;600;800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="styles.css?v=17">
+    <link rel="stylesheet" href="styles.css?v=2?v=17">
 </head>
 <body>
     <!-- Vista de Inicio de Sesión -->
@@ -130,26 +130,25 @@
         </div>
 
         <main>
-            <div class="mode-switcher" style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
+            <!-- Top mode switcher is now hidden, replaced by bottom nav -->
+            <div class="mode-switcher" style="display: none;">
                 <button id="mode-voz-btn" class="mode-btn">🎙️ Voz</button>
                 <button id="mode-teclado-btn" class="mode-btn" style="display: none;">⌨️ Teclado</button>
                 <button id="mode-caja-btn" class="mode-btn active">📱 Caja</button>
             </div>
 
-            
-            <div class="category-selector">
-                <label for="category-dropdown">Categoría Activa</label>
-                <div class="category-controls">
-                    <select id="category-dropdown">
-                        <!-- Llenado por JS -->
-                    </select>
+            <div class="pos-header-sticky">
+                <div class="category-selector" style="margin-bottom: 10px;">
+                    <div id="category-pill-container" class="category-pill-container">
+                        <!-- Filled by JS -->
+                    </div>
+                    <input type="hidden" id="category-dropdown" value="Todas">
                 </div>
-            </div>
 
-
-            <div class="pos-controls" style="margin-bottom: 15px; margin-top: 15px; display: flex; flex-direction: column; gap: 10px;">
-                <input type="text" id="pos-search-input" placeholder="🔍 Buscar producto rápido..." autocomplete="off" style="width: 100%; font-size: 1.1rem; padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary-color); border-radius: 8px;">
-                <button id="pos-create-new-btn" style="width: 100%; background: linear-gradient(135deg, var(--primary-color) 0%, #d97706 100%); border: none; padding: 12px 20px; border-radius: 8px; color: var(--bg-dark); font-weight: bold; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); transition: transform 0.2s ease, box-shadow 0.2s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(245, 158, 11, 0.6)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(245, 158, 11, 0.4)';">✨ Crear Ítem</button>
+                <div class="pos-controls" style="display: flex; gap: 10px;">
+                    <input type="text" id="pos-search-input" placeholder="🔍 Buscar producto rápido..." autocomplete="off" style="flex: 1; font-size: 1.1rem; padding: 10px; background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--primary-color); border-radius: 8px;">
+                    <button id="pos-create-new-btn" style="background: linear-gradient(135deg, var(--primary-color) 0%, #d97706 100%); border: none; padding: 10px 15px; border-radius: 8px; color: var(--bg-dark); font-weight: bold; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); transition: transform 0.2s ease, box-shadow 0.2s ease;">✨ Crear</button>
+                </div>
             </div>
             
             <div id="mode-voz-container" class="mode-container hidden">
@@ -598,6 +597,27 @@
         </div>
     </div>
 
-    <script src="app.js?v=26"></script>
+    <nav class="bottom-nav">
+        <button class="mode-btn" onclick="document.getElementById('mode-voz-btn').click(); updateBottomNav(this);">
+            <i>🎙️</i>
+            <span>Voz</span>
+        </button>
+        <button class="mode-btn active" onclick="document.getElementById('mode-caja-btn').click(); updateBottomNav(this);">
+            <i>📱</i>
+            <span>Caja</span>
+        </button>
+        <button class="mode-btn" onclick="document.getElementById('adminToggleBtn').click(); updateBottomNav(this);">
+            <i>⚙️</i>
+            <span>Admin</span>
+        </button>
+    </nav>
+
+    <script>
+        function updateBottomNav(clickedBtn) {
+            document.querySelectorAll('.bottom-nav .mode-btn').forEach(btn => btn.classList.remove('active'));
+            clickedBtn.classList.add('active');
+        }
+    </script>
+    <script src="app.js?v=27"></script>
 </body>
 </html>

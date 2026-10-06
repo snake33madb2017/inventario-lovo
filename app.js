@@ -446,6 +446,45 @@ async function fetchDiccionario() {
     } catch(e) { console.error("Error cargando diccionario", e); }
 }
 
+function renderCategoryPills() {
+    const pillContainer = document.getElementById('category-pill-container');
+    if (!pillContainer) return;
+    pillContainer.innerHTML = '';
+    
+    // Todas
+    const pillTodas = document.createElement('div');
+    pillTodas.className = 'category-pill';
+    pillTodas.textContent = 'Todas';
+    if (categoryDropdown.value === 'Todas') pillTodas.classList.add('active');
+    pillTodas.addEventListener('click', () => {
+        categoryDropdown.value = 'Todas';
+        localStorage.setItem('last_category', 'Todas');
+        updatePills('Todas');
+        renderPosGrid('Todas');
+    });
+    pillContainer.appendChild(pillTodas);
+    
+    categorias.forEach(cat => {
+        const pill = document.createElement('div');
+        pill.className = 'category-pill';
+        pill.textContent = cat;
+        if (categoryDropdown.value === cat) pill.classList.add('active');
+        pill.addEventListener('click', () => {
+            categoryDropdown.value = cat;
+            localStorage.setItem('last_category', cat);
+            updatePills(cat);
+            renderPosGrid(cat);
+        });
+        pillContainer.appendChild(pill);
+    });
+    
+    function updatePills(activeCat) {
+        pillContainer.querySelectorAll('.category-pill').forEach(p => {
+            p.classList.toggle('active', p.textContent === activeCat);
+        });
+    }
+}
+
 function renderCategorias() {
     categoryDropdown.innerHTML = '';
     
@@ -467,6 +506,8 @@ function renderCategorias() {
     } else {
         categoryDropdown.value = 'Todas';
     }
+    
+    renderCategoryPills();
 }
 
 // --- Audio & Speech (omitted logic unchanged mostly, but rewritten for brevity/completeness) ---
