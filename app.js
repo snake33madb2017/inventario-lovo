@@ -199,6 +199,10 @@ function showLogin() {
     appView.classList.remove('active');
     appView.classList.add('hidden');
     adminView.classList.add('hidden');
+    
+    // Hide bottom nav on login
+    const bottomNav = document.querySelector('.bottom-nav');
+    if (bottomNav) bottomNav.style.display = 'none';
 }
 
 function handleLogout() {
@@ -216,6 +220,10 @@ function showApp(userName, userRol) {
     appView.classList.add('active');
     adminView.classList.add('hidden');
     if(laboratorioView) laboratorioView.classList.add('hidden');
+    
+    // Show bottom nav on app
+    const bottomNav = document.querySelector('.bottom-nav');
+    if (bottomNav) bottomNav.style.display = 'flex';
     
     let rolText = ' (Camarero)';
     if(userRol === 'encargado') rolText = ' (Encargado)';
