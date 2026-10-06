@@ -253,6 +253,12 @@ function showApp(userName, userRol) {
         if(laboratorioToggleBtn) laboratorioToggleBtn.classList.add('hidden');
     }
     
+    // Forzar el estado visual del modo activo (Caja por defecto)
+    const btnCaja = document.getElementById('mode-caja-btn');
+    if (btnCaja && btnCaja.classList.contains('active')) {
+        btnCaja.click();
+    }
+    
     checkServerConnection();
     fetchStockReferencia();
 }
@@ -2183,7 +2189,8 @@ document.getElementById('form-merma')?.addEventListener('submit', async (e) => {
         }
     } catch(e) { console.error(e); }
 });
-
+const btnGuardarNotas = document.getElementById('btn-guardar-notas');
+const notasInput = document.getElementById('notas-input');
 
 if (btnGuardarNotas && notasInput) {
     btnGuardarNotas.addEventListener('click', async () => {
